@@ -92,16 +92,67 @@ if [[ -f "$manifest" ]]; then
   fi
 fi
 
-# 6. Sync the manual if the firmware repo has one
-if [[ -f "$firmware_root/MANUAL.md" ]]; then
-  cp "$firmware_root/MANUAL.md" "$device_dir/manual.md"
-  echo "==> Manual synced from $firmware_root/MANUAL.md"
+# 6. Ensure a changelog.md exists for this version (placeholder if new)
+changelog_file="$out_dir/changelog.md"
+if [[ ! -f "$changelog_file" ]]; then
+  cat > "$changelog_file" <<EOF
+Release notes for $version. Edit this file before committing.
+
+-
+EOF
+  echo "==> Created placeholder $changelog_file — fill it in before commit."
 fi
 
-# 7. Regenerate landing page so a new device shows up automatically
+# 7. Regenerate versions.json (lists all published versions for the device page)
+python3 - "$device_dir" <<'PY'
+import json, pathlib, datetime
+device_dir = pathlib.Path(__import__("sys").argv[1])
+fw_root = device_dir / "firmware"
+
+def vkey(name):
+    parts = []
+    for x in name.split('.'):
+        try:
+            parts.append((0, int(x)))
+        except ValueError:
+            parts.append((1, x))
+    return parts
+
+versions = []
+if fw_root.is_dir():
+    dirs = sorted(
+        (d for d in fw_root.iterdir() if d.is_dir()),
+        key=lambda p: vkey(p.name),
+        reverse=True,
+    )
+    for d in dirs:
+        firmware_bin = d / "firmware.bin"
+        if not firmware_bin.is_file():
+            continue
+        cl = d / "changelog.md"
+        changelog = cl.read_text() if cl.is_file() else ""
+        try:
+            date = datetime.date.fromtimestamp(firmware_bin.stat().st_mtime).isoformat()
+        except Exception:
+            date = ""
+        versions.append({
+            "version": d.name,
+            "date": date,
+            "changelog": changelog,
+        })
+
+out = {
+    "current": versions[0]["version"] if versions else None,
+    "versions": versions,
+}
+(device_dir / "versions.json").write_text(json.dumps(out, indent=2) + "\n")
+print(f"==> versions.json: {len(versions)} version(s)")
+PY
+
+# 8. Regenerate landing page so a new device shows up automatically
 "$repo_root/scripts/update-landing.sh"
 
-# 8. Summary
+# 9. Summary
 total=$(du -cb "$out_dir"/*.bin 2>/dev/null | tail -1 | awk '{print $1}')
 echo
 echo "==> Published $device $version"
@@ -110,5 +161,7 @@ echo "    Files:     $(ls "$out_dir" | tr '\n' ' ')"
 echo "    Total:     $((total / 1024)) KiB"
 echo "    Manifest:  $manifest"
 echo
-echo "Next: review the diff, commit, and 'git push'."
-echo "      The site will be live on GitHub Pages in ~1 minute."
+echo "Next:"
+echo "  1. Edit $changelog_file with release notes."
+echo "  2. Review the diff, then: git add -A && git commit -m 'Publish $device $version' && git push"
+echo "  The site will be live on GitHub Pages in ~1 minute."

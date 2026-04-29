@@ -1,8 +1,8 @@
 # trixbrix.github.io
 
-Public hub for TrixBrix firmware releases, documentation, and end-user tools. Hosted on GitHub Pages at [https://trixbrix.github.io/](https://trixbrix.github.io/).
+Public hub for Trixbrix firmware releases, documentation, and end-user tools. Hosted on GitHub Pages at [https://trixbrix.github.io/](https://trixbrix.github.io/).
 
-The first thing here is a **browser-based firmware updater** for TrixBrix ESP32 devices: end users open the page in Chrome/Edge, plug in the device via USB, and click a button to flash. No installer, no Python, no PlatformIO. Powered by [esp-web-tools](https://github.com/esphome/esp-web-tools) and the WebSerial API.
+The first thing here is a **browser-based firmware updater** for Trixbrix ESP32 devices: end users open the page in Chrome/Edge, plug in the device via USB, and click a button to flash. No installer, no Python, no PlatformIO. Powered by [esp-web-tools](https://github.com/esphome/esp-web-tools) and the WebSerial API.
 
 ## Browser support
 
@@ -18,16 +18,17 @@ trixbrix.github.io/
 ├── assets/                       # css, favicon
 ├── <device>/                     # one folder per device
 │   ├── index.html                # updater page
-│   ├── manifest.json             # esp-web-tools manifest (paths + version)
+│   ├── manifest.json             # esp-web-tools manifest (paths + current version)
 │   ├── meta.json                 # display name + description (used on landing)
-│   ├── manual.md                 # user manual (rendered client-side)
+│   ├── versions.json             # generated: list of all published versions + changelogs
 │   └── firmware/<version>/       # versioned bin files (committed to git)
 │       ├── bootloader.bin
 │       ├── partitions.bin
 │       ├── boot_app0.bin
-│       └── firmware.bin
+│       ├── firmware.bin
+│       └── changelog.md          # release notes for this version (Markdown)
 └── scripts/
-    ├── publish-device.sh         # build firmware + copy bins + bump manifest + regen landing
+    ├── publish-device.sh         # build firmware + copy bins + bump manifest + regen versions/landing
     └── update-landing.sh         # regenerate landing-page cards from each <device>/meta.json
 ```
 
@@ -49,14 +50,16 @@ What it does:
 1. Runs `pio run` in `../<device>/`
 2. Copies `bootloader.bin`, `partitions.bin`, `firmware.bin` (from `.pio/build/esp32dev/`) and `boot_app0.bin` (from PlatformIO framework) into `<device>/firmware/<version>/`
 3. Rewrites `<device>/manifest.json` to point at the new version
-4. Syncs `MANUAL.md` from the firmware repo if present
-5. Regenerates the landing page
+4. Creates `<device>/firmware/<version>/changelog.md` (placeholder if new) — **edit this with the release notes before committing**
+5. Regenerates `<device>/versions.json` from all `firmware/*/changelog.md` files
+6. Regenerates the landing page
 
 Then commit and push:
 
 ```bash
+$EDITOR multi-switch/firmware/<version>/changelog.md   # write release notes
 git add -A
-git commit -m "Publish multi-switch 1.2.0"
+git commit -m "Publish multi-switch <version>"
 git push
 ```
 
@@ -75,8 +78,7 @@ python3 -m http.server 8000
    - `index.html` (copy `multi-switch/index.html`, change device name + warning text)
    - `manifest.json` (set `"name"` and `chipFamily` if not classic ESP32)
    - `meta.json` (`{"name": "...", "description": "...", "chip": "esp32"}`)
-   - `manual.md` (placeholder; will be overwritten by publish if the firmware repo has `MANUAL.md`)
-2. Run `./scripts/publish-device.sh <device>` to populate `firmware/`.
+2. Run `./scripts/publish-device.sh <device>` to populate `firmware/` and generate `versions.json`.
 3. The landing page picks up the new device automatically.
 
 ## Requirements

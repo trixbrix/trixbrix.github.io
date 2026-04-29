@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Multi-Switch Controller — Firmware Updater</title>
-  <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg">
-  <link rel="stylesheet" href="../../assets/style.css">
+  <title>All-In-One Controller 2.0 — Trixbrix Software</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../assets/style.css">
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 </head>
 <body>
   <main>
-    <p><a href="../../">&larr; All devices</a></p>
+    <p><a href="../">&larr; All devices</a></p>
 
-    <h1>Multi-Switch Controller<span id="version" class="version-tag">…</span></h1>
-    <p class="tagline">All-in-one Bluetooth servo controller for LEGO train switches. Plug it into your computer via USB and click <strong>Connect</strong> to install the latest firmware.</p>
+    <h1>All-In-One Controller 2.0<span id="version" class="version-tag">…</span></h1>
+    <p class="tagline">Battery-powered Bluetooth servo controller for LEGO train switches. Plug it into your computer via USB and click <strong>Connect</strong> to install the latest firmware.</p>
 
     <div id="browser-warning" class="banner" hidden>
       <h3>Unsupported browser</h3>
@@ -38,11 +38,11 @@
       </div>
     </details>
 
-    <h2>User manual</h2>
-    <div id="manual" class="manual-content"><p class="muted">Loading…</p></div>
+    <h2>Version history</h2>
+    <div id="versions" class="versions"><p class="muted">Loading…</p></div>
 
     <footer>
-      <p>Source: <a href="https://github.com/" rel="noopener">multi-switch firmware</a> · Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+      <p>Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
     </footer>
   </main>
 
@@ -51,16 +51,37 @@
       document.getElementById('browser-warning').hidden = false;
     }
 
-    fetch('./manifest.json', { cache: 'no-store' })
-      .then(r => r.json())
-      .then(m => { document.getElementById('version').textContent = 'v' + m.version; })
-      .catch(() => { document.getElementById('version').textContent = ''; });
+    const versionsEl = document.getElementById('versions');
+    const versionTag = document.getElementById('version');
 
-    const { marked } = await import('https://cdn.jsdelivr.net/npm/marked@12/+esm');
-    const md = await fetch('./manual.md', { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
-    document.getElementById('manual').innerHTML = md
-      ? marked.parse(md)
-      : '<p class="muted">Manual not available.</p>';
+    try {
+      const [{ marked }, manifest, history] = await Promise.all([
+        import('https://cdn.jsdelivr.net/npm/marked@12/+esm'),
+        fetch('./manifest.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+        fetch('./versions.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      ]);
+
+      versionTag.textContent = manifest && manifest.version ? 'v' + manifest.version : '';
+
+      if (!history || !history.versions || history.versions.length === 0) {
+        versionsEl.innerHTML = '<p class="muted">No versions published yet.</p>';
+      } else {
+        versionsEl.innerHTML = history.versions.map(v => {
+          const isCurrent = manifest && v.version === manifest.version;
+          const dateStr = v.date ? `<span class="muted">— ${v.date}</span>` : '';
+          const tag = isCurrent ? ' <span class="version-pill">current</span>' : '';
+          const body = v.changelog && v.changelog.trim()
+            ? marked.parse(v.changelog)
+            : '<p class="muted">No release notes.</p>';
+          return `<article class="version">
+            <header><h3>v${v.version} ${dateStr}${tag}</h3></header>
+            <div class="changelog">${body}</div>
+          </article>`;
+        }).join('');
+      }
+    } catch (e) {
+      versionsEl.innerHTML = `<p class="muted">Could not load version history: ${e.message}</p>`;
+    }
   </script>
 </body>
 </html>
