@@ -1,0 +1,6 @@
+{
+  "name": "Multi-Switch Controller",
+  "description": "All-in-one Bluetooth servo controller for LEGO train switches. Powered Up compatible.",
+  "chip": "esp32",
+  "source_repo": "../multi-switch"
+}

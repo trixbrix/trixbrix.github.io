@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrixBrix Firmware Updater</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <main>
+    <h1>TrixBrix Firmware Updater</h1>
+    <p class="tagline">Update your TrixBrix devices directly from your browser. Plug in via USB, click install, done.</p>
+
+    <div id="browser-warning" class="banner" hidden>
+      <h3>Unsupported browser</h3>
+      <p>Firmware flashing requires the WebSerial API, which is only available in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Please open this page in one of those to continue.</p>
+    </div>
+
+    <h2>Devices</h2>
+    <!-- DEVICES_START -->
+    <a class="card" href="multi-switch/">
+      <h3>Multi-Switch Controller</h3>
+      <p class="desc">All-in-one Bluetooth servo controller for LEGO train switches. Powered Up compatible.</p>
+    </a>
+    <!-- DEVICES_END -->
+
+    <footer>
+      <p>Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a>. USB flashing only — no installer required.</p>
+    </footer>
+  </main>
+
+  <script>
+    if (!('serial' in navigator)) {
+      document.getElementById('browser-warning').hidden = false;
+    }
+  </script>
+</body>
+</html>
