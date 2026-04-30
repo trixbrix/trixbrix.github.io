@@ -5,8 +5,10 @@
 #
 # Usage: ./scripts/publish-device.sh <device> [version]
 #
-# If no version is given, the script tries to parse FIRMWARE_VERSION
-# from ../<device>/include/params.h.
+# If no version is given, this script picks the next sequential integer:
+# (max integer in <device>/firmware/*/ ) + 1, or 1 if none exist yet.
+# Versions are simple integers (1, 2, 3, ...) — no semver — because the
+# audience is non-technical end users.
 
 set -euo pipefail
 
@@ -37,17 +39,18 @@ fi
 echo "==> Building firmware in $firmware_root"
 ( cd "$firmware_root" && pio run )
 
-# 2. Resolve version
+# 2. Resolve version: explicit arg, or next integer after the highest existing
 if [[ -z "$version" ]]; then
-  params="$firmware_root/include/params.h"
-  if [[ -f "$params" ]]; then
-    raw=$(grep -E '^\s*#define\s+FIRMWARE_VERSION\s+' "$params" | head -1 | awk '{print $3}' | tr -d '"')
-    [[ -n "$raw" ]] && version="$raw"
-  fi
-fi
-if [[ -z "$version" ]]; then
-  echo "Error: could not auto-detect version. Pass it as the second argument." >&2
-  exit 1
+  highest=0
+  shopt -s nullglob
+  for d in "$device_dir/firmware"/*/; do
+    name=$(basename "$d")
+    if [[ "$name" =~ ^[0-9]+$ ]] && (( name > highest )); then
+      highest=$name
+    fi
+  done
+  shopt -u nullglob
+  version=$((highest + 1))
 fi
 echo "==> Publishing version $version"
 
@@ -75,6 +78,16 @@ cp "$build_dir/bootloader.bin" "$out_dir/"
 cp "$build_dir/partitions.bin" "$out_dir/"
 cp "$build_dir/firmware.bin"   "$out_dir/"
 cp "$boot_app0"                "$out_dir/boot_app0.bin"
+
+# Record which firmware-repo commit produced these binaries so the next
+# publish can diff git log <prev>..HEAD and write release notes from it.
+src_sha=$(git -C "$firmware_root" rev-parse HEAD 2>/dev/null || true)
+if [[ -n "$src_sha" ]]; then
+  echo "$src_sha" > "$out_dir/source-sha.txt"
+  if [[ -n "$(git -C "$firmware_root" status --porcelain 2>/dev/null)" ]]; then
+    echo "Warning: $firmware_root has uncommitted changes. Built from $src_sha plus uncommitted work." >&2
+  fi
+fi
 
 # 5. Update manifest.json: version + parts paths
 manifest="$device_dir/manifest.json"
@@ -162,6 +175,6 @@ echo "    Total:     $((total / 1024)) KiB"
 echo "    Manifest:  $manifest"
 echo
 echo "Next:"
-echo "  1. Edit $changelog_file with release notes."
-echo "  2. Review the diff, then: git add -A && git commit -m 'Publish $device $version' && git push"
+echo "  1. Edit $changelog_file with release notes (or use the /publish skill which writes them automatically)."
+echo "  2. Review the diff, then: git add -A && git commit -m 'Publish $device v$version' && git push"
 echo "  The site will be live on GitHub Pages in ~1 minute."

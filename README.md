@@ -38,32 +38,40 @@ GitHub repo is `trixbrix/trixbrix.github.io`, public. Pages serves it from `main
 
 ## Workflow
 
-### Publish a new firmware build
+### Publish a new firmware build (recommended)
 
-```bash
-./scripts/publish-device.sh multi-switch              # auto-detects version from include/params.h
-./scripts/publish-device.sh multi-switch 1.2.0        # explicit version
+Run the **`/publish`** Claude skill from inside this repo:
+
+```
+/publish                    # default: only-configured device, next integer version
+/publish multi-switch       # explicit device
 ```
 
-What it does:
+The skill builds the firmware, picks the next version number, generates a customer-friendly changelog from the firmware repo's git log since the last release, asks you to confirm/edit it, then commits and pushes.
+
+### Manual publish (fallback)
+
+```bash
+./scripts/publish-device.sh multi-switch        # next integer (1, 2, 3, ...)
+./scripts/publish-device.sh multi-switch 5      # explicit version
+$EDITOR multi-switch/firmware/<n>/changelog.md  # write release notes
+git add -A && git commit -m "Publish multi-switch v<n>" && git push
+```
+
+`publish-device.sh` does:
 
 1. Runs `pio run` in `../<device>/`
-2. Copies `bootloader.bin`, `partitions.bin`, `firmware.bin` (from `.pio/build/esp32dev/`) and `boot_app0.bin` (from PlatformIO framework) into `<device>/firmware/<version>/`
-3. Rewrites `<device>/manifest.json` to point at the new version
-4. Creates `<device>/firmware/<version>/changelog.md` (placeholder if new) — **edit this with the release notes before committing**
-5. Regenerates `<device>/versions.json` from all `firmware/*/changelog.md` files
-6. Regenerates the landing page
-
-Then commit and push:
-
-```bash
-$EDITOR multi-switch/firmware/<version>/changelog.md   # write release notes
-git add -A
-git commit -m "Publish multi-switch <version>"
-git push
-```
+2. Copies the four `.bin` files into `<device>/firmware/<version>/`
+3. Records the firmware-repo commit SHA in `source-sha.txt` (used by `/publish` next time)
+4. Rewrites `<device>/manifest.json` to point at the new version
+5. Creates a placeholder `changelog.md` if none exists yet
+6. Regenerates `<device>/versions.json` and the landing page
 
 GitHub Pages picks the change up in about a minute.
+
+### Versioning
+
+Versions are simple integers (1, 2, 3, ...). No semver — the audience is end users, not developers. The release date appears next to each version in the website's history. The firmware itself can carry its own internal `FIRMWARE_VERSION` (in `params.h` or wherever) — that's separate from the public release number and untouched by these scripts.
 
 ### Test locally before pushing
 
