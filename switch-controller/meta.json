@@ -1,8 +1,9 @@
 {
-  "name": "Switch Controller",
-  "description": "Compact Bluetooth servo controller for a single LEGO train switch. Powered Up compatible.",
+  "name": "Switch Controller for Original Lego Switches",
+  "description": "Universal device for controlling original LEGO switches using the same Powered Up remote that operates your trains.",
   "chip": "esp32",
   "usb": "micro-usb",
   "i18n_key": "sc",
-  "source_repo": "../switch-controller"
+  "source_repo": "../switch-controller",
+  "shop_url": "https://shop.trixbrix.eu/p/automation/parts/switch-controller-for-original-lego-switches/11215-switch-controller-for-original-lego-switches"
 }

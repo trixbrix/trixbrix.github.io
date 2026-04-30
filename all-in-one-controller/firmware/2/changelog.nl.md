@@ -1,0 +1,1 @@
+Soepelere updates vanaf nu. De controller identificeert zich aan deze pagina, zodat toekomstige firmware-updates de vraag „Erase device?" overslaan en je opgeslagen instellingen (gekoppelde afstandsbediening, wisselkleur, poorttoewijzingen) automatisch behouden.

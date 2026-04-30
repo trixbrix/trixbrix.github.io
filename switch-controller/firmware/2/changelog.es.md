@@ -1,0 +1,1 @@
+Actualizaciones más fluidas a partir de ahora. El controlador se identifica con esta página, así que las futuras actualizaciones de firmware se saltan la pregunta «¿Borrar dispositivo?» y conservan automáticamente tus ajustes guardados (mando emparejado, color del desvío).

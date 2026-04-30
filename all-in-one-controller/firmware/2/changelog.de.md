@@ -1,0 +1,1 @@
+Sanftere Updates ab sofort. Der Controller meldet sich jetzt selbst an dieser Seite, sodass künftige Firmware-Updates die Frage „Gerät löschen?" überspringen und deine gespeicherten Einstellungen (gekoppelte Fernbedienung, Weichenfarbe, Anschlusszuweisungen) automatisch behalten.

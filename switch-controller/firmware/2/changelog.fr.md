@@ -1,0 +1,1 @@
+Mises à jour plus fluides à partir de maintenant. Le contrôleur s'identifie désormais auprès de cette page, ce qui permet aux futures mises à jour du firmware d'ignorer la question « Effacer l'appareil ? » et de conserver automatiquement vos paramètres enregistrés (télécommande appairée, couleur d'aiguillage).

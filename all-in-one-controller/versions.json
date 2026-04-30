@@ -1,10 +1,41 @@
 {
-  "current": "1",
+  "current": "3",
   "versions": [
+    {
+      "version": "3",
+      "date": "2026-04-30",
+      "changelog": {
+        "en": "Internal cleanup. The device's serial console now uses the full product name and matches the version shown on this page. No user-facing changes from v2.\n",
+        "de": "Interne Bereinigung. Die serielle Konsole des Ger\u00e4ts verwendet jetzt den vollst\u00e4ndigen Produktnamen und passt zur auf dieser Seite angezeigten Version. Keine sichtbaren \u00c4nderungen gegen\u00fcber v2.\n",
+        "fr": "Nettoyage interne. La console s\u00e9rie de l'appareil utilise d\u00e9sormais le nom complet du produit et correspond \u00e0 la version affich\u00e9e sur cette page. Aucun changement visible par rapport \u00e0 v2.\n",
+        "es": "Limpieza interna. La consola serie del dispositivo ahora usa el nombre completo del producto y coincide con la versi\u00f3n que aparece en esta p\u00e1gina. Sin cambios visibles respecto a v2.\n",
+        "pl": "Wewn\u0119trzne porz\u0105dki. Konsola szeregowa urz\u0105dzenia u\u017cywa teraz pe\u0142nej nazwy produktu i pokazuje t\u0119 sam\u0105 wersj\u0119, co ta strona. Brak widocznych zmian wzgl\u0119dem v2.\n",
+        "nl": "Interne opschoning. De seri\u00eble console van het apparaat gebruikt nu de volledige productnaam en komt overeen met de versie op deze pagina. Geen zichtbare wijzigingen ten opzichte van v2.\n"
+      }
+    },
+    {
+      "version": "2",
+      "date": "2026-04-30",
+      "changelog": {
+        "en": "Smoother updates from now on. The controller now identifies itself to this page, so future firmware updates skip the \"Erase device?\" question and keep your saved settings (paired remote, switch color, port assignments) automatically.\n",
+        "de": "Sanftere Updates ab sofort. Der Controller meldet sich jetzt selbst an dieser Seite, sodass k\u00fcnftige Firmware-Updates die Frage \u201eGer\u00e4t l\u00f6schen?\" \u00fcberspringen und deine gespeicherten Einstellungen (gekoppelte Fernbedienung, Weichenfarbe, Anschlusszuweisungen) automatisch behalten.\n",
+        "fr": "Mises \u00e0 jour plus fluides \u00e0 partir de maintenant. Le contr\u00f4leur s'identifie d\u00e9sormais aupr\u00e8s de cette page, ce qui permet aux futures mises \u00e0 jour du firmware d'ignorer la question \u00ab Effacer l'appareil ? \u00bb et de conserver automatiquement vos param\u00e8tres enregistr\u00e9s (t\u00e9l\u00e9commande appair\u00e9e, couleur d'aiguillage, affectations de ports).\n",
+        "es": "Actualizaciones m\u00e1s fluidas a partir de ahora. El controlador se identifica con esta p\u00e1gina, as\u00ed que las futuras actualizaciones de firmware se saltan la pregunta \u00ab\u00bfBorrar dispositivo?\u00bb y conservan autom\u00e1ticamente tus ajustes guardados (mando emparejado, color del desv\u00edo, asignaciones de puertos).\n",
+        "pl": "P\u0142ynniejsze aktualizacje od teraz. Kontroler sam si\u0119 przedstawia tej stronie, dzi\u0119ki czemu kolejne aktualizacje firmware'u pomijaj\u0105 pytanie \u201eErase device?\" i automatycznie zachowuj\u0105 zapisane ustawienia (sparowany pilot, kolor zwrotnicy, przypisania port\u00f3w).\n",
+        "nl": "Soepelere updates vanaf nu. De controller identificeert zich aan deze pagina, zodat toekomstige firmware-updates de vraag \u201eErase device?\" overslaan en je opgeslagen instellingen (gekoppelde afstandsbediening, wisselkleur, poorttoewijzingen) automatisch behouden.\n"
+      }
+    },
     {
       "version": "1",
       "date": "2026-04-30",
-      "changelog": "First firmware release on the new updater. From here on, every release will list the actual changes here.\n"
+      "changelog": {
+        "en": "First firmware release on the new updater. From here on, every release will list the actual changes here.\n",
+        "de": "Erste Firmware-Ver\u00f6ffentlichung auf dem neuen Updater. Ab jetzt werden hier die tats\u00e4chlichen \u00c4nderungen jeder Version aufgelistet.\n",
+        "fr": "Premi\u00e8re version du firmware sur le nouvel outil de mise \u00e0 jour. \u00c0 partir de maintenant, chaque version listera ici les changements r\u00e9els.\n",
+        "es": "Primera versi\u00f3n de firmware en el nuevo actualizador. A partir de ahora, cada versi\u00f3n listar\u00e1 aqu\u00ed los cambios reales.\n",
+        "pl": "Pierwsza wersja firmware'u na nowym narz\u0119dziu aktualizacji. Od teraz ka\u017cda wersja b\u0119dzie tutaj zawiera\u0107 list\u0119 faktycznych zmian.\n",
+        "nl": "Eerste firmware-versie op de nieuwe updater. Vanaf nu zal elke versie hier de daadwerkelijke wijzigingen vermelden.\n"
+      }
     }
   ]
 }

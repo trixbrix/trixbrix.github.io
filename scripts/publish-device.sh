@@ -166,8 +166,17 @@ if fw_root.is_dir():
         firmware_bin = d / "firmware.bin"
         if not firmware_bin.is_file():
             continue
-        cl = d / "changelog.md"
-        changelog = cl.read_text() if cl.is_file() else ""
+        # Collect all changelog files: changelog.md (en), changelog.<lang>.md (other langs)
+        changelogs = {}
+        for cl in d.glob("changelog*.md"):
+            stem = cl.stem  # e.g. "changelog" or "changelog.de"
+            if stem == "changelog":
+                lang = "en"
+            elif stem.startswith("changelog."):
+                lang = stem.split(".", 1)[1]
+            else:
+                continue
+            changelogs[lang] = cl.read_text()
         try:
             date = datetime.date.fromtimestamp(firmware_bin.stat().st_mtime).isoformat()
         except Exception:
@@ -175,7 +184,7 @@ if fw_root.is_dir():
         versions.append({
             "version": d.name,
             "date": date,
-            "changelog": changelog,
+            "changelog": changelogs,
         })
 
 out = {

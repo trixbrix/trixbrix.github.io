@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Switch Controller — Trixbrix Software</title>
-  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <title>Switch Controller for Original Lego Switches — Trixbrix Software</title>
   <link rel="icon" type="image/png" href="../assets/logo.png">
   <link rel="apple-touch-icon" href="../assets/logo.png">
   <link rel="stylesheet" href="../assets/style.css">
@@ -32,6 +31,7 @@
     })();
   </script>
   <script src="../assets/i18n.js" defer></script>
+  <script src="../assets/improv-detect.js" defer></script>
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 </head>
 <body>
@@ -55,8 +55,10 @@
     <section class="hero hero-product">
       <div>
         <span class="eyebrow" data-i18n="device.eyebrow">Firmware update</span>
-        <h1>Switch Controller<span id="version" class="version-tag">…</span></h1>
-        <p class="tagline" data-i18n="device.sc.tagline">Compact Bluetooth servo controller for a single LEGO train switch. Follow the three steps below to install the latest firmware on your controller.</p>
+        <h1>Switch Controller for Original Lego Switches</h1>
+        <div id="version" class="version-line" hidden></div>
+        <p class="tagline" data-i18n="device.sc.tagline">Universal device that lets you control original LEGO switches using the same Powered Up remote that operates your trains. Works with the Powered Up app — no modifications to the switch required.</p>
+        <p class="shop-link"><a href="https://shop.trixbrix.eu/p/automation/parts/switch-controller-for-original-lego-switches/11215-switch-controller-for-original-lego-switches" target="_blank" rel="noopener"><span data-i18n="shop.viewProduct">View in shop</span> ↗</a></p>
       </div>
       <img class="hero-image" src="./product.webp" alt="Switch Controller" loading="lazy">
     </section>
@@ -66,12 +68,31 @@
       <p data-i18n="browser.body">The update tool only works in Google Chrome or Microsoft Edge. Please open this page in one of those, then come back here.</p>
     </div>
 
+    <section class="detect-panel" id="detect-panel" data-state="empty" hidden>
+      <span class="detect-empty-prompt" data-i18n="detect.emptyPrompt">Want to know what's already on your device?</span>
+      <div class="detect-result">
+        <div class="detect-col detect-current">
+          <span class="label" data-i18n="detect.onDevice">On your device</span>
+          <span class="value" id="detect-current-value">—</span>
+          <span class="sub" id="detect-current-sub"></span>
+        </div>
+        <div class="detect-arrow" aria-hidden="true">→</div>
+        <div class="detect-col detect-target">
+          <span class="label" data-i18n="detect.willInstall">Will install</span>
+          <span class="value" id="detect-target-value">—</span>
+        </div>
+      </div>
+      <p class="detect-status" id="detect-status" data-tone="info"></p>
+      <button class="btn-secondary" id="detect-btn" type="button" data-i18n="detect.button">Check what's installed</button>
+    </section>
+
     <section class="panel">
       <h2 data-i18n="install.heading">Install firmware</h2>
       <ol class="steps">
         <li data-i18n="install.step1">Plug your controller into the computer with the USB cable.</li>
         <li data-i18n-html="install.step2">Click <strong>Install firmware</strong>.</li>
         <li data-i18n-html="install.step3">A small window will pop up asking you to pick a device — choose the one that appeared when you plugged in (usually the only option), then click <em>Connect</em>.</li>
+        <li id="step-erase" data-i18n-html="install.step4">When asked <em>Erase device?</em>, leave the box unchecked to keep your saved settings (paired remote, switch color). Then click <em>Next</em> and <em>Install</em>.</li>
       </ol>
       <p class="step-hint" data-i18n-html="install.tip"><strong>Tip:</strong> if you see more than one option in the list, look for a name containing <code>USB-SERIAL</code>, <code>CP210x</code>, or <code>CH340</code>.</p>
 
@@ -79,20 +100,6 @@
         <esp-web-install-button id="installer" manifest="./manifest.json">
           <button id="install-btn" class="btn-install" slot="activate" data-i18n="install.button">Install firmware</button>
         </esp-web-install-button>
-
-        <label class="erase-toggle">
-          <input type="checkbox" id="erase-first">
-          <span class="box" aria-hidden="true"></span>
-          <span data-i18n="erase.label">Also factory-reset</span>
-        </label>
-      </div>
-
-      <div class="erase-warning" id="erase-warning" hidden>
-        <span class="icon" aria-hidden="true">⚠️</span>
-        <div>
-          <strong data-i18n="erase.warningTitle">This wipes all saved settings.</strong>
-          <span data-i18n="erase.warningBody.sc"> Paired LEGO Powered Up network ID and switch color will be erased. The device boots up as if brand new. Only use this for a true factory reset or to recover from a corrupted state.</span>
-        </div>
       </div>
     </section>
 
@@ -121,18 +128,6 @@
       }
     });
 
-    const installer = document.getElementById('installer');
-    const installBtn = document.getElementById('install-btn');
-    const eraseCheckbox = document.getElementById('erase-first');
-    const eraseWarning = document.getElementById('erase-warning');
-
-    eraseCheckbox.addEventListener('change', () => {
-      const on = eraseCheckbox.checked;
-      installer.toggleAttribute('erase-first', on);
-      eraseWarning.hidden = !on;
-      installBtn.classList.toggle('is-erase', on);
-    });
-
     const versionsEl = document.getElementById('versions');
     const versionTag = document.getElementById('version');
 
@@ -140,6 +135,129 @@
 
     let versionsData = null;
     let manifestData = null;
+
+    // ---- Firmware detection (improv-serial) ---------------------------------
+    const EXPECTED_FIRMWARE_NAME = 'Trixbrix Switch Controller';
+    const detectPanel  = document.getElementById('detect-panel');
+    const detectBtn    = document.getElementById('detect-btn');
+    const detectStatus = document.getElementById('detect-status');
+    const detectCurVal = document.getElementById('detect-current-value');
+    const detectCurSub = document.getElementById('detect-current-sub');
+    const detectTgtVal = document.getElementById('detect-target-value');
+    const stepErase    = document.getElementById('step-erase');
+    let detectState = { kind: 'empty' };
+
+    function renderDetect() {
+      if (!('serial' in navigator)) return;
+      const targetVer = manifestData && manifestData.version
+        ? 'v' + manifestData.version : '—';
+      detectTgtVal.textContent = targetVer;
+
+      const s = detectState;
+      if (s.kind === 'empty') {
+        detectPanel.hidden = false;
+        detectPanel.dataset.state = 'empty';
+        detectPanel.dataset.noTarget = 'true';
+        detectStatus.hidden = true;
+        detectBtn.disabled = false;
+        detectBtn.textContent = T('detect.button');
+        return;
+      }
+      detectPanel.dataset.state = s.kind;
+      detectPanel.dataset.noTarget = 'false';
+      detectBtn.disabled = (s.kind === 'detecting');
+      detectBtn.textContent = (s.kind === 'detecting')
+        ? T('detect.detecting')
+        : T('detect.tryAgain');
+      detectStatus.hidden = false;
+
+      if (s.kind === 'detecting') {
+        detectCurVal.textContent = '…';
+        detectCurSub.textContent = '';
+        detectStatus.dataset.tone = 'info';
+        detectStatus.innerHTML = T('detect.detecting');
+        return;
+      }
+
+      if (s.kind === 'detected') {
+        detectCurVal.textContent = 'v' + s.version;
+        detectCurSub.textContent = '';
+        const same = manifestData && s.version === manifestData.version;
+        if (same) {
+          detectPanel.dataset.noTarget = 'true';
+          detectStatus.dataset.tone = 'ok';
+          detectStatus.innerHTML = T('detect.upToDate');
+        } else {
+          detectStatus.dataset.tone = 'info';
+          detectStatus.innerHTML = T('detect.outdated');
+        }
+        if (stepErase) stepErase.hidden = true;
+        return;
+      }
+
+      if (s.kind === 'wrongDevice') {
+        detectCurVal.textContent = '?';
+        detectCurSub.textContent = s.firmware ? `(${s.firmware})` : '';
+        detectStatus.dataset.tone = 'warn';
+        detectStatus.innerHTML = T('detect.unknownDevice');
+        return;
+      }
+
+      if (s.kind === 'legacy') {
+        detectCurVal.textContent = 'v1?';
+        detectCurSub.textContent = '';
+        detectStatus.dataset.tone = 'warn';
+        detectStatus.innerHTML = T('detect.legacyDetected');
+        if (stepErase) stepErase.hidden = false;
+        return;
+      }
+
+      if (s.kind === 'error') {
+        detectCurVal.textContent = '—';
+        detectCurSub.textContent = '';
+        detectStatus.dataset.tone = 'error';
+        detectStatus.innerHTML = T('detect.connectFailed');
+        return;
+      }
+    }
+
+    async function runDetect({ silent = false } = {}) {
+      detectState = { kind: 'detecting' };
+      renderDetect();
+      try {
+        const info = await window.__trixbrixDetect({ useExisting: silent });
+        if (!info) {
+          detectState = { kind: silent ? 'empty' : 'legacy' };
+        } else if (info.firmware !== EXPECTED_FIRMWARE_NAME) {
+          detectState = { kind: 'wrongDevice', firmware: info.firmware };
+        } else {
+          detectState = { kind: 'detected', version: info.version };
+        }
+      } catch (e) {
+        if (silent) {
+          detectState = { kind: 'empty' };
+        } else {
+          detectState = { kind: 'error', message: e && e.message };
+        }
+      }
+      renderDetect();
+    }
+
+    if ('serial' in navigator) {
+      detectBtn.addEventListener('click', () => runDetect({ silent: false }));
+      document.addEventListener('i18n:changed', renderDetect);
+      navigator.serial.getPorts().then(ports => {
+        if (ports.length === 1) runDetect({ silent: true });
+      }).catch(() => {});
+    }
+    // ---- /Firmware detection -----------------------------------------------
+
+    function pickChangelog(cl) {
+      if (!cl) return '';
+      if (typeof cl === 'string') return cl;
+      const lang = document.documentElement.lang || 'en';
+      return cl[lang] || cl.en || Object.values(cl)[0] || '';
+    }
 
     function renderVersions() {
       if (!versionsData || !versionsData.versions || versionsData.versions.length === 0) {
@@ -150,8 +268,9 @@
         const isCurrent = manifestData && v.version === manifestData.version;
         const dateStr = v.date ? `<span class="when">${v.date}</span>` : '';
         const tag = isCurrent ? `<span class="version-pill">${T('versions.current')}</span>` : '';
-        const body = v.changelog && v.changelog.trim()
-          ? window.marked.parse(v.changelog)
+        const text = pickChangelog(v.changelog);
+        const body = text && text.trim()
+          ? window.marked.parse(text)
           : `<p class="muted">${T('versions.noNotes')}</p>`;
         return `<article class="version">
           <header><h3>v${v.version}</h3>${dateStr}${tag}</header>
@@ -169,8 +288,14 @@
       window.marked = marked;
       manifestData = manifest;
       versionsData = history;
-      versionTag.textContent = manifest && manifest.version ? 'v' + manifest.version : '';
+      const cur = (history && history.versions && history.versions[0]) || null;
+      if (cur) {
+        const datePart = cur.date ? `<span class="sep">·</span><span>${cur.date}</span>` : '';
+        versionTag.innerHTML = `<span class="chip chip-version"><span class="v">v${cur.version}</span>${datePart}</span>`;
+        versionTag.hidden = false;
+      }
       renderVersions();
+      renderDetect();
       document.addEventListener('i18n:changed', renderVersions);
     } catch (e) {
       versionsEl.innerHTML = `<p class="muted">${T('versions.error')} ${e.message}</p>`;

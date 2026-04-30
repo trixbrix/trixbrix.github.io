@@ -1,0 +1,1 @@
+Płynniejsze aktualizacje od teraz. Kontroler sam się przedstawia tej stronie, dzięki czemu kolejne aktualizacje firmware'u pomijają pytanie „Erase device?" i automatycznie zachowują zapisane ustawienia (sparowany pilot, kolor zwrotnicy).

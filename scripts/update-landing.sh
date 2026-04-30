@@ -63,12 +63,34 @@ for meta in "$repo_root"/*/meta.json; do
       cards+="        <p class=\"desc\">$desc</p>"$'\n'
     fi
   fi
+
+  # Build hardware chip and version chip; wrap in a flex row if either exists.
+  hw_chip=""
   if [[ -n "$chip" || -n "$usb_label" ]]; then
     chip_upper=$(echo "$chip" | tr '[:lower:]' '[:upper:]')
     parts=""
     [[ -n "$chip_upper" ]] && parts="$chip_upper"
     [[ -n "$usb_label" ]] && parts="${parts:+$parts · }$usb_label"
-    cards+="        <span class=\"chip\">$parts</span>"$'\n'
+    hw_chip="<span class=\"chip\">$parts</span>"
+  fi
+
+  ver_chip=""
+  versions_json="$device_dir/versions.json"
+  if [[ -f "$versions_json" ]] && command -v jq >/dev/null 2>&1; then
+    cur_v=$(jq -r '.versions[0].version // empty' "$versions_json")
+    cur_d=$(jq -r '.versions[0].date // empty'    "$versions_json")
+    if [[ -n "$cur_v" ]]; then
+      vlabel="<span class=\"v\">v$cur_v</span>"
+      [[ -n "$cur_d" ]] && vlabel="$vlabel<span class=\"sep\">·</span><span>$cur_d</span>"
+      ver_chip="<span class=\"chip chip-version\">$vlabel</span>"
+    fi
+  fi
+
+  if [[ -n "$hw_chip" || -n "$ver_chip" ]]; then
+    cards+="        <div class=\"chip-row\">"$'\n'
+    [[ -n "$ver_chip" ]] && cards+="          $ver_chip"$'\n'
+    [[ -n "$hw_chip"  ]] && cards+="          $hw_chip"$'\n'
+    cards+="        </div>"$'\n'
   fi
   cards+="      </div>"$'\n'
   cards+="    </a>"$'\n'

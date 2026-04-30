@@ -1,8 +1,9 @@
 {
   "name": "All-In-One Controller 2.0",
-  "description": "Battery-powered Bluetooth servo controller for LEGO train switches. Powered Up compatible.",
+  "description": "Universal device for remote control of switches, signals, and barriers — using the same Powered Up remote that operates your trains.",
   "chip": "esp32",
   "usb": "micro-usb",
   "i18n_key": "aio",
-  "source_repo": "../all-in-one-controller"
+  "source_repo": "../all-in-one-controller",
+  "shop_url": "https://shop.trixbrix.eu/p/automation/parts/all-in-one-controller-2-dot-0/11209-all-in-one-controller-2-dot-0"
 }

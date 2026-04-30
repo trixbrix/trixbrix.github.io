@@ -1,0 +1,1 @@
+Smoother updates from now on. The controller now identifies itself to this page, so future firmware updates skip the "Erase device?" question and keep your saved settings (paired remote, switch color, port assignments) automatically.

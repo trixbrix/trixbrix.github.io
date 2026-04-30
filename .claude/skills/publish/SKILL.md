@@ -64,18 +64,36 @@ Then **rewrite the raw subjects into customer-friendly notes**. This is the most
 
 ## Show, confirm, ship
 
-1. Print the proposed changelog to the user as plain markdown (inside a code fence or just verbatim).
+1. Print the proposed **English** changelog to the user as plain markdown (inside a code fence or just verbatim).
 
 2. Ask once: *"Ship as v\<n\> with these notes? Reply 'ok', or paste edits / tell me what to change."*
 
-3. Wait for the user's response. Iterate on the notes until they say ok. **Don't proceed without an explicit go-ahead.**
+3. Wait for the user's response. Iterate on the English notes until they say ok. **Don't proceed without an explicit go-ahead.**
 
-4. Once approved:
+4. Once English is approved, **translate the changelog into the five other supported languages**: Deutsch (de), Français (fr), Español (es), Polski (pl), Nederlands (nl).
+   - The site shows the changelog in whichever language the visitor picked, so all five matter.
+   - Translate naturally — same content and tone, not literal word-for-word. Keep brand names ("Trixbrix", "Powered Up", "LEGO", "Bluetooth", "ESP32") in English. Keep markdown formatting identical across languages.
+   - You don't need to ask the user to re-confirm the translations — produce them silently. They'll be visible in the diff and the user can edit any file before commit if a translation reads off.
+
+5. Once approved + translated:
    - `mkdir -p <device>/firmware/<n>/`
-   - Write the approved changelog to `<device>/firmware/<n>/changelog.md`
+   - Write the approved changelog files:
+     - `<device>/firmware/<n>/changelog.md`     (English)
+     - `<device>/firmware/<n>/changelog.de.md`  (Deutsch)
+     - `<device>/firmware/<n>/changelog.fr.md`  (Français)
+     - `<device>/firmware/<n>/changelog.es.md`  (Español)
+     - `<device>/firmware/<n>/changelog.pl.md`  (Polski)
+     - `<device>/firmware/<n>/changelog.nl.md`  (Nederlands)
+   - **Bump the firmware's reported version (improv-serial)** — only if the source actually changed since the last release.
+     - Look at `../<device>/include/version.h`. If it doesn't exist, skip this step (older firmware that doesn't yet ship improv-serial).
+     - If it exists, it contains `#define FIRMWARE_VERSION_STRING "<x>"`. The value the firmware reports over improv-serial **must** match the manifest version on the page, or esp-web-tools won't recognize the device as up-to-date.
+     - **Decide whether to bump:**
+       - If `cur_sha != prev_sha` (there are new firmware commits since the last release) → bump. Edit `../<device>/include/version.h`, replacing the current value with `"<n>"`, then in the firmware repo: `git add include/version.h && git commit -m "Bump FIRMWARE_VERSION_STRING to <n>" && git push`. **Note: this re-dirties `cur_sha` — re-read it after the push (`git -C ../<device> rev-parse HEAD`) and use the new SHA when `publish-device.sh` records `source-sha.txt`** (the script already does this, but be aware that the SHA written into `<device>/firmware/<n>/source-sha.txt` will be the post-bump commit, not the one you computed the changelog from).
+       - If `cur_sha == prev_sha` (no new firmware commits since last release — e.g., we're republishing the same source for some reason) → **do not bump**. Leave `version.h` alone. The firmware will keep reporting the previous version string, which is fine: esp-web-tools will see `_isSameVersion === false` and offer the Update path anyway.
+       - If `version.h`'s current value already equals `"<n>"` (defensive: maybe a previous half-finished publish bumped it but didn't release) → don't re-edit, don't create an empty commit, just continue.
    - Run `./scripts/publish-device.sh <device> <n>`
-     - This builds via `pio run`, copies the four bins, writes `source-sha.txt`, updates `manifest.json`, regenerates `versions.json` and the landing page.
-     - It will *not* overwrite our `changelog.md` (it only writes a placeholder if the file is missing).
+     - This builds via `pio run`, copies the four bins, writes `source-sha.txt`, updates `manifest.json`, regenerates `versions.json` (with all six language variants embedded) and the landing page.
+     - It will *not* overwrite any `changelog*.md` file (it only writes a placeholder English file if none exists).
    - Show the user `git status --short` so they see what changed.
    - Commit:
      ```bash
