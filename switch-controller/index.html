@@ -101,6 +101,7 @@
           <button id="install-btn" class="btn-install" slot="activate" data-i18n="install.button">Install firmware</button>
         </esp-web-install-button>
       </div>
+      <p class="install-verify-hint" data-i18n-html="install.verifyFirst">Click <strong>Check what's installed</strong> above to verify your device before installing.</p>
     </section>
 
     <h2 data-i18n="versions.heading">Version history</h2>
@@ -200,6 +201,12 @@
         return;
       }
 
+      const allowInstall = (s.kind === 'detected' || s.kind === 'legacy');
+      if (installPanel) {
+        installPanel.classList.toggle('install-blocked', !allowInstall);
+        installPanel.classList.toggle('show-verify-hint', s.kind === 'empty' || s.kind === 'detecting');
+      }
+
       if (s.kind === 'wrongDevice') {
         detectCurVal.textContent = '⚠';
         detectCurSub.textContent = s.firmware ? s.firmware.replace(/^Trixbrix /, '') : '';
@@ -215,11 +222,8 @@
             .replace('{detected}', `<strong>${s.firmware || '?'}</strong>`)
             .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`);
         }
-        if (installPanel) installPanel.classList.add('install-blocked');
         return;
       }
-
-      if (installPanel) installPanel.classList.remove('install-blocked');
 
       if (s.kind === 'legacy') {
         detectCurVal.textContent = 'v1';

@@ -524,14 +524,24 @@ code {
   box-shadow: var(--shadow-sm);
   margin-bottom: 1.5rem;
 }
-.panel.install-blocked .install-row { opacity: 0.35; pointer-events: none; filter: saturate(0.4); }
+.panel.install-blocked .install-row { opacity: 0.35; pointer-events: none; filter: saturate(0.4); position: relative; }
 .panel.install-blocked .install-row::after {
   content: '';
   position: absolute;
   inset: 0;
   cursor: not-allowed;
 }
-.panel.install-blocked .install-row { position: relative; }
+.install-verify-hint {
+  margin: 0.85rem 0 0;
+  padding: 0.7rem 0.95rem;
+  background: var(--paper-tint);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  display: none;
+}
+.panel.show-verify-hint .install-verify-hint { display: block; }
 .panel h2 { margin-top: 0; }
 .panel > p:last-child { margin-bottom: 0; }
 

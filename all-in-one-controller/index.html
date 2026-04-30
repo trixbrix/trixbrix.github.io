@@ -101,6 +101,7 @@
           <button id="install-btn" class="btn-install" slot="activate" data-i18n="install.button">Install firmware</button>
         </esp-web-install-button>
       </div>
+      <p class="install-verify-hint" data-i18n-html="install.verifyFirst">Click <strong>Check what's installed</strong> above to verify your device before installing.</p>
     </section>
 
     <h2 data-i18n="versions.heading">Version history</h2>
@@ -204,6 +205,19 @@
         return;
       }
 
+      // Install is gated on a successful verify: enabled only when we have
+      // confirmed the right firmware (`detected`) or a v1 device with no
+      // improv response (`legacy`). Every other state — empty, detecting,
+      // wrongDevice, error — keeps the install button blocked.
+      const allowInstall = (s.kind === 'detected' || s.kind === 'legacy');
+      if (installPanel) {
+        installPanel.classList.toggle('install-blocked', !allowInstall);
+        // Inline "verify first" hint shows only when nothing has been
+        // detected yet — for wrongDevice/error the detect panel above
+        // already explains what's wrong.
+        installPanel.classList.toggle('show-verify-hint', s.kind === 'empty' || s.kind === 'detecting');
+      }
+
       if (s.kind === 'wrongDevice') {
         detectCurVal.textContent = '⚠';
         detectCurSub.textContent = s.firmware ? s.firmware.replace(/^Trixbrix /, '') : '';
@@ -219,13 +233,8 @@
             .replace('{detected}', `<strong>${s.firmware || '?'}</strong>`)
             .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`);
         }
-        // Block the install button — a wrong-firmware flash would brick UX.
-        if (installPanel) installPanel.classList.add('install-blocked');
         return;
       }
-
-      // For all other kinds we want install enabled.
-      if (installPanel) installPanel.classList.remove('install-blocked');
 
       if (s.kind === 'legacy') {
         // Only one pre-improv firmware ever shipped, so this is unambiguously v1.
