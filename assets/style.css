@@ -524,6 +524,14 @@ code {
   box-shadow: var(--shadow-sm);
   margin-bottom: 1.5rem;
 }
+.panel.install-blocked .install-row { opacity: 0.35; pointer-events: none; filter: saturate(0.4); }
+.panel.install-blocked .install-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  cursor: not-allowed;
+}
+.panel.install-blocked .install-row { position: relative; }
 .panel h2 { margin-top: 0; }
 .panel > p:last-child { margin-bottom: 0; }
 

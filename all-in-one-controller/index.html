@@ -138,6 +138,12 @@
 
     // ---- Firmware detection (improv-serial) ---------------------------------
     const EXPECTED_FIRMWARE_NAME = 'Trixbrix All-In-One Controller 2.0';
+    // Maps known Trixbrix firmware identities to the page that updates them,
+    // so when the user plugs in the wrong device we can offer a one-click jump.
+    const FIRMWARE_PAGES = {
+      'Trixbrix All-In-One Controller 2.0': { path: '../all-in-one-controller/', label: 'All-In-One Controller 2.0' },
+      'Trixbrix Switch Controller':         { path: '../switch-controller/',     label: 'Switch Controller for Original Lego Switches' },
+    };
     const detectPanel  = document.getElementById('detect-panel');
     const detectBtn    = document.getElementById('detect-btn');
     const detectStatus = document.getElementById('detect-status');
@@ -145,6 +151,7 @@
     const detectCurSub = document.getElementById('detect-current-sub');
     const detectTgtVal = document.getElementById('detect-target-value');
     const stepErase    = document.getElementById('step-erase');
+    const installPanel = document.querySelector('.panel');
     let detectState = { kind: 'empty' };
 
     function renderDetect() {
@@ -198,15 +205,29 @@
       }
 
       if (s.kind === 'wrongDevice') {
-        detectCurVal.textContent = '?';
-        detectCurSub.textContent = s.firmware ? `(${s.firmware})` : '';
-        detectStatus.dataset.tone = 'warn';
-        detectStatus.innerHTML = T('detect.unknownDevice');
+        detectCurVal.textContent = '⚠';
+        detectCurSub.textContent = s.firmware ? s.firmware.replace(/^Trixbrix /, '') : '';
+        detectStatus.dataset.tone = 'error';
+        const suggested = FIRMWARE_PAGES[s.firmware];
+        if (suggested) {
+          detectStatus.innerHTML = T('detect.wrongDevice')
+            .replace('{detected}', `<strong>${s.firmware}</strong>`)
+            .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`)
+            .replace('{link}', `<a href="${suggested.path}">${suggested.label}</a>`);
+        } else {
+          detectStatus.innerHTML = T('detect.unknownDevice');
+        }
+        // Block the install button — a wrong-firmware flash would brick UX.
+        if (installPanel) installPanel.classList.add('install-blocked');
         return;
       }
 
+      // For all other kinds we want install enabled.
+      if (installPanel) installPanel.classList.remove('install-blocked');
+
       if (s.kind === 'legacy') {
-        detectCurVal.textContent = 'v1?';
+        // Only one pre-improv firmware ever shipped, so this is unambiguously v1.
+        detectCurVal.textContent = 'v1';
         detectCurSub.textContent = '';
         detectStatus.dataset.tone = 'warn';
         detectStatus.innerHTML = T('detect.legacyDetected');
