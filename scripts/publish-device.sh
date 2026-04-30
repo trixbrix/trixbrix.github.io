@@ -35,9 +35,19 @@ if [[ ! -d "$device_dir" ]]; then
   exit 1
 fi
 
-# 1. Build firmware
+# 1. Build firmware. Prefer a venv-local pio (firmware-updater/.venv) so the
+# tool stays scoped to this repo and isn't required system-wide.
+PIO_BIN="pio"
+if [[ -x "$repo_root/.venv/bin/pio" ]]; then
+  PIO_BIN="$repo_root/.venv/bin/pio"
+elif ! command -v pio >/dev/null 2>&1; then
+  echo "Error: 'pio' not found. Either install PlatformIO globally, or create" >&2
+  echo "a venv inside this repo and install it there:" >&2
+  echo "  python3 -m venv .venv && .venv/bin/pip install platformio" >&2
+  exit 1
+fi
 echo "==> Building firmware in $firmware_root"
-( cd "$firmware_root" && pio run )
+( cd "$firmware_root" && "$PIO_BIN" run )
 
 # 2. Resolve version: explicit arg, or next integer after the highest existing
 if [[ -z "$version" ]]; then
@@ -56,12 +66,26 @@ echo "==> Publishing version $version"
 
 # 3. Locate binaries
 build_dir="$firmware_root/.pio/build/esp32dev"
-for f in bootloader.bin partitions.bin firmware.bin; do
+for f in partitions.bin firmware.bin; do
   if [[ ! -f "$build_dir/$f" ]]; then
     echo "Error: $build_dir/$f not found" >&2
     exit 1
   fi
 done
+
+# Bootloader: Arduino-ESP32 v2.x doesn't emit bootloader.bin from the build.
+# It ships pre-built bootloaders per flash_mode/freq. Default for esp32dev
+# (no override in platformio.ini) is DIO @ 40MHz.
+if [[ -f "$build_dir/bootloader.bin" ]]; then
+  bootloader_src="$build_dir/bootloader.bin"
+else
+  bootloader_src=$(find "$HOME/.platformio/packages/framework-arduinoespressif32/tools/sdk/bin" \
+                     -name 'bootloader_dio_40m.bin' 2>/dev/null | head -1)
+  if [[ -z "$bootloader_src" || ! -f "$bootloader_src" ]]; then
+    echo "Error: could not locate bootloader.bin or framework bootloader_dio_40m.bin" >&2
+    exit 1
+  fi
+fi
 
 # boot_app0.bin lives in the framework package; PIO downloads it on first build.
 boot_app0=$(find "$HOME/.platformio/packages" -type f -name boot_app0.bin 2>/dev/null | head -1)
@@ -74,7 +98,7 @@ fi
 # 4. Copy bins into versioned directory
 out_dir="$device_dir/firmware/$version"
 mkdir -p "$out_dir"
-cp "$build_dir/bootloader.bin" "$out_dir/"
+cp "$bootloader_src"           "$out_dir/bootloader.bin"
 cp "$build_dir/partitions.bin" "$out_dir/"
 cp "$build_dir/firmware.bin"   "$out_dir/"
 cp "$boot_app0"                "$out_dir/boot_app0.bin"

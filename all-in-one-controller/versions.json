@@ -1,0 +1,10 @@
+{
+  "current": "1",
+  "versions": [
+    {
+      "version": "1",
+      "date": "2026-04-30",
+      "changelog": "First firmware release on the new updater. From here on, every release will list the actual changes here.\n"
+    }
+  ]
+}
