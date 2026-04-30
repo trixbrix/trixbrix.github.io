@@ -170,4 +170,8 @@
   }
 
   window.__trixbrixDetect = detectFirmware;
+  // Lower-level: given an already-open port, send improv GET_DEVICE_INFO
+  // and return parsed info or null. Used by the install-time guard so we
+  // can introspect the user's picked port before esp-web-tools opens it.
+  window.__trixbrixQueryImprov = queryImprovOnOpenPort;
 })();

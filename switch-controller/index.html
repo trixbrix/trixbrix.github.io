@@ -239,9 +239,12 @@
       }
     }
 
+    let _detectionInFlight = false;
+
     async function runDetect({ silent = false } = {}) {
       detectState = { kind: 'detecting' };
       renderDetect();
+      _detectionInFlight = true;
       try {
         const info = await window.__trixbrixDetect({ useExisting: silent });
         if (!info) {
@@ -257,6 +260,8 @@
         } else {
           detectState = { kind: 'error', message: e && e.message };
         }
+      } finally {
+        _detectionInFlight = false;
       }
       renderDetect();
     }
@@ -267,6 +272,41 @@
       navigator.serial.getPorts().then(ports => {
         if (ports.length === 1) runDetect({ silent: true });
       }).catch(() => {});
+
+      // Install-time safety: probe via improv right after port pick, refuse
+      // to return a wrong-device port to esp-web-tools.
+      const _filterWrappedRequestPort = navigator.serial.requestPort.bind(navigator.serial);
+      navigator.serial.requestPort = async (opts) => {
+        const port = await _filterWrappedRequestPort(opts);
+        if (!port) return port;
+        // Skip the install-time probe when the explicit "Check" button is
+        // running its own detection — avoids opening the port twice.
+        if (_detectionInFlight) return port;
+        let info = null;
+        try {
+          await port.open({ baudRate: 115200, bufferSize: 8192 });
+          info = await window.__trixbrixQueryImprov(port);
+        } catch (e) {
+          // probe failed; continue
+        } finally {
+          try { await port.close(); } catch {}
+        }
+        if (info && info.firmware === EXPECTED_FIRMWARE_NAME) {
+          detectState = { kind: 'detected', version: info.version };
+        } else if (info) {
+          detectState = { kind: 'wrongDevice', firmware: info.firmware };
+        } else {
+          detectState = { kind: 'legacy' };
+        }
+        renderDetect();
+        if (detectState.kind === 'wrongDevice') {
+          if (detectPanel && detectPanel.scrollIntoView) {
+            detectPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          return null;
+        }
+        return port;
+      };
     }
     // ---- /Firmware detection -----------------------------------------------
 

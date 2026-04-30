@@ -247,9 +247,12 @@
       }
     }
 
+    let _detectionInFlight = false;
+
     async function runDetect({ silent = false } = {}) {
       detectState = { kind: 'detecting' };
       renderDetect();
+      _detectionInFlight = true;
       try {
         const info = await window.__trixbrixDetect({ useExisting: silent });
         if (!info) {
@@ -260,12 +263,13 @@
           detectState = { kind: 'detected', version: info.version };
         }
       } catch (e) {
-        // requestPort cancelled, port busy, etc. Fall back gracefully.
         if (silent) {
           detectState = { kind: 'empty' };
         } else {
           detectState = { kind: 'error', message: e && e.message };
         }
+      } finally {
+        _detectionInFlight = false;
       }
       renderDetect();
     }
@@ -279,6 +283,49 @@
       navigator.serial.getPorts().then(ports => {
         if (ports.length === 1) runDetect({ silent: true });
       }).catch(() => {});
+
+      // Install-time safety: wrap requestPort so that immediately after the
+      // user picks a port, we open it, query improv, and refuse to return a
+      // wrong-device port to esp-web-tools. esp-web-tools checks `if (!o)
+      // return;` so returning null aborts its install flow silently. We
+      // surface the wrong-device error in our detection panel.
+      const _filterWrappedRequestPort = navigator.serial.requestPort.bind(navigator.serial);
+      navigator.serial.requestPort = async (opts) => {
+        const port = await _filterWrappedRequestPort(opts);
+        if (!port) return port;
+        // The "Check what's installed" button does its own probe via
+        // __trixbrixDetect, which also calls requestPort. In that case skip
+        // the wrap's probe to avoid opening + closing the same port twice.
+        if (_detectionInFlight) return port;
+        // Probe the port before handing it back.
+        let info = null;
+        try {
+          await port.open({ baudRate: 115200, bufferSize: 8192 });
+          info = await window.__trixbrixQueryImprov(port);
+        } catch (e) {
+          // probe failed (port locked, device unresponsive, etc.) — fall through
+        } finally {
+          try { await port.close(); } catch {}
+        }
+        // Update the on-page detection state from what we just learned.
+        if (info && info.firmware === EXPECTED_FIRMWARE_NAME) {
+          detectState = { kind: 'detected', version: info.version };
+        } else if (info) {
+          detectState = { kind: 'wrongDevice', firmware: info.firmware };
+        } else {
+          detectState = { kind: 'legacy' };
+        }
+        renderDetect();
+        if (detectState.kind === 'wrongDevice') {
+          // Bring the detection panel into view so the user sees why the
+          // install didn't proceed.
+          if (detectPanel && detectPanel.scrollIntoView) {
+            detectPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          return null; // esp-web-tools aborts silently on falsy port
+        }
+        return port;
+      };
     }
     // ---- /Firmware detection -----------------------------------------------
 
