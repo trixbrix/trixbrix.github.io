@@ -215,7 +215,9 @@
             .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`)
             .replace('{link}', `<a href="${suggested.path}">${suggested.label}</a>`);
         } else {
-          detectStatus.innerHTML = T('detect.unknownDevice');
+          detectStatus.innerHTML = T('detect.unknownDevice')
+            .replace('{detected}', `<strong>${s.firmware || '?'}</strong>`)
+            .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`);
         }
         // Block the install button — a wrong-firmware flash would brick UX.
         if (installPanel) installPanel.classList.add('install-blocked');
