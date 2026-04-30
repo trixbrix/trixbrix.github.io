@@ -858,6 +858,37 @@ esp-web-install-button {
   .panel, .card { padding: 1.2rem 1.25rem; }
   .install-row { gap: 0.85rem 1rem; }
   .btn-install { width: 100%; justify-content: center; }
+
+  /* Top controls: shrink so they don't overlap the wordmark on small screens. */
+  .top-controls { top: 0.6rem; right: 0.6rem; gap: 0.35rem; }
+  .lang-switcher select {
+    padding: 0.4rem 1.4rem 0.4rem 0.55rem;
+    font-size: 0.78rem;
+    height: 36px;
+    max-width: 5.5rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .lang-switcher::after { right: 0.55rem; }
+  .theme-toggle { width: 36px; height: 36px; border-radius: 9px; }
+  .theme-toggle svg { width: 18px; height: 18px; }
+
+  /* Header: smaller logo and wordmark so the controls don't crowd it. */
+  .site-header { gap: 0.7rem; margin-bottom: 1.75rem; }
+  .site-header .logo-mark { width: 50px; height: 50px; border-radius: 12px; }
+  .site-header .wordmark { font-size: 1.4rem; gap: 0.2rem; }
+  .site-header .wordmark .sub { font-size: 0.62rem; letter-spacing: 0.18em; }
+
+  /* Hero image stacks above the title on narrow screens. */
+  .hero-product { gap: 1rem; }
+  .hero-product .hero-image { width: 130px; height: 130px; }
+
+  /* Flow panel: tighten padding. */
+  .flow-panel { padding: 1.5rem 1.1rem; }
+  .flow-version-display .version-num { font-size: 1.8rem; }
+  .flow-actions { width: 100%; flex-direction: column; }
+  .flow-actions > * { width: 100%; }
 }
 
 /* ----- reduced motion ----- */
