@@ -2,5 +2,5 @@
   "name": "All-In-One Controller 2.0",
   "description": "Battery-powered Bluetooth servo controller for LEGO train switches. Powered Up compatible.",
   "chip": "esp32",
-  "source_repo": "../multi-switch"
+  "source_repo": "../all-in-one-controller"
 }

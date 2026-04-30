@@ -1,0 +1,6 @@
+{
+  "name": "Switch Controller",
+  "description": "Compact Bluetooth servo controller for a single LEGO train switch. Powered Up compatible.",
+  "chip": "esp32",
+  "source_repo": "../switch-controller"
+}

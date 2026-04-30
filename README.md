@@ -44,7 +44,7 @@ Run the **`/publish`** Claude skill from inside this repo:
 
 ```
 /publish                    # default: only-configured device, next integer version
-/publish multi-switch       # explicit device
+/publish all-in-one-controller       # explicit device
 ```
 
 The skill builds the firmware, picks the next version number, generates a customer-friendly changelog from the firmware repo's git log since the last release, asks you to confirm/edit it, then commits and pushes.
@@ -52,10 +52,10 @@ The skill builds the firmware, picks the next version number, generates a custom
 ### Manual publish (fallback)
 
 ```bash
-./scripts/publish-device.sh multi-switch        # next integer (1, 2, 3, ...)
-./scripts/publish-device.sh multi-switch 5      # explicit version
-$EDITOR multi-switch/firmware/<n>/changelog.md  # write release notes
-git add -A && git commit -m "Publish multi-switch v<n>" && git push
+./scripts/publish-device.sh all-in-one-controller        # next integer (1, 2, 3, ...)
+./scripts/publish-device.sh all-in-one-controller 5      # explicit version
+$EDITOR all-in-one-controller/firmware/<n>/changelog.md  # write release notes
+git add -A && git commit -m "Publish all-in-one-controller v<n>" && git push
 ```
 
 `publish-device.sh` does:
@@ -83,7 +83,7 @@ python3 -m http.server 8000
 ### Adding a new device
 
 1. Create `<device>/` with:
-   - `index.html` (copy `multi-switch/index.html`, change device name + warning text)
+   - `index.html` (copy `all-in-one-controller/index.html`, change device name + warning text)
    - `manifest.json` (set `"name"` and `chipFamily` if not classic ESP32)
    - `meta.json` (`{"name": "...", "description": "...", "chip": "esp32"}`)
 2. Run `./scripts/publish-device.sh <device>` to populate `firmware/` and generate `versions.json`.

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Switch Controller — Trixbrix Software</title>
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+  <main>
+    <p><a href="../">&larr; All devices</a></p>
+
+    <h1>Switch Controller<span id="version" class="version-tag">…</span></h1>
+    <p class="tagline">Compact Bluetooth servo controller for a single LEGO train switch. Plug it into your computer via USB and click <strong>Connect</strong> to install the latest firmware.</p>
+
+    <div id="browser-warning" class="banner" hidden>
+      <h3>Unsupported browser</h3>
+      <p>Firmware flashing requires the WebSerial API, which is only available in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Please open this page in one of those.</p>
+    </div>
+
+    <h2>Install firmware</h2>
+    <p>Connect the device to your computer with a USB cable, then click the button below. You'll be asked to pick the serial port for the device.</p>
+    <div class="install-row">
+      <esp-web-install-button manifest="./manifest.json"></esp-web-install-button>
+    </div>
+
+    <details>
+      <summary>Advanced: factory reset (full erase)</summary>
+      <div class="warning">
+        <strong>⚠️ This will wipe all saved settings on the device:</strong> paired LEGO Powered Up network ID, switch color, position calibration. The device will reboot as if brand new. Only use this for a factory reset or to recover from a corrupted state.
+      </div>
+      <div class="install-row">
+        <esp-web-install-button manifest="./manifest.json" erase-first>
+          <button slot="activate">Install with full erase</button>
+        </esp-web-install-button>
+      </div>
+    </details>
+
+    <h2>Version history</h2>
+    <div id="versions" class="versions"><p class="muted">Loading…</p></div>
+
+    <footer>
+      <p>Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+    </footer>
+  </main>
+
+  <script type="module">
+    if (!('serial' in navigator)) {
+      document.getElementById('browser-warning').hidden = false;
+    }
+
+    const versionsEl = document.getElementById('versions');
+    const versionTag = document.getElementById('version');
+
+    try {
+      const [{ marked }, manifest, history] = await Promise.all([
+        import('https://cdn.jsdelivr.net/npm/marked@12/+esm'),
+        fetch('./manifest.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+        fetch('./versions.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
+      ]);
+
+      versionTag.textContent = manifest && manifest.version ? 'v' + manifest.version : '';
+
+      if (!history || !history.versions || history.versions.length === 0) {
+        versionsEl.innerHTML = '<p class="muted">No versions published yet.</p>';
+      } else {
+        versionsEl.innerHTML = history.versions.map(v => {
+          const isCurrent = manifest && v.version === manifest.version;
+          const dateStr = v.date ? `<span class="muted">— ${v.date}</span>` : '';
+          const tag = isCurrent ? ' <span class="version-pill">current</span>' : '';
+          const body = v.changelog && v.changelog.trim()
+            ? marked.parse(v.changelog)
+            : '<p class="muted">No release notes.</p>';
+          return `<article class="version">
+            <header><h3>v${v.version} ${dateStr}${tag}</h3></header>
+            <div class="changelog">${body}</div>
+          </article>`;
+        }).join('');
+      }
+    } catch (e) {
+      versionsEl.innerHTML = `<p class="muted">Could not load version history: ${e.message}</p>`;
+    }
+  </script>
+</body>
+</html>

@@ -8,7 +8,7 @@ user-invocable: true
 
 You are publishing a new firmware release for one of the Trixbrix devices configured in this repo. End-to-end: build the firmware, pick a version number, write release notes from git history, commit, push.
 
-Arguments: `$ARGUMENTS` (optional device name, e.g. `multi-switch`).
+Arguments: `$ARGUMENTS` (optional device name, e.g. `all-in-one-controller` or `switch-controller`).
 
 ## Pre-flight
 
