@@ -6,45 +6,69 @@
   <title>Trixbrix Software</title>
   <meta name="description" content="Firmware and tools for Trixbrix devices. Update straight from your browser — plug in, click install, done.">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
   <link rel="stylesheet" href="assets/style.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('trixbrix-theme');
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+  </script>
+  <script src="assets/i18n.js" defer></script>
 </head>
 <body>
+  <div class="top-controls">
+    <div class="lang-switcher">
+      <select id="lang-select" data-i18n-aria="lang.label" aria-label="Language" title="Language"></select>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" type="button" data-i18n-aria="theme.toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+  </div>
   <main>
     <a class="site-header" href="./" aria-label="Trixbrix Software home">
-      <span class="logo-mark"><img src="assets/logo.png" alt=""></span>
-      <span class="wordmark">Trixbrix<span class="sub">Software</span></span>
+      <img class="logo-mark" src="assets/logo.png" alt="">
+      <span class="wordmark">Trixbrix<span class="sub" data-i18n="brand.sub">Software</span></span>
     </a>
 
     <section class="hero">
-      <span class="eyebrow">Browser-based firmware updater</span>
-      <h1>Snap. Plug. Flash.</h1>
-      <p class="tagline">No installer, no Python, no fuss. Open this page in Chrome or Edge, plug your Trixbrix device in over USB, and click one button to install the latest firmware.</p>
+      <span class="eyebrow" data-i18n="landing.eyebrow">Firmware updates</span>
+      <h1 data-i18n="landing.heading">Update your Trixbrix device.</h1>
+      <p class="tagline" data-i18n-html="landing.tagline">Plug your controller into the computer with its USB cable, pick it from the list below, and click <strong>Install firmware</strong>. The whole thing takes about a minute — nothing to download, nothing to install on your computer.</p>
     </section>
 
     <div id="browser-warning" class="banner" hidden>
-      <h3>Heads up — this browser can't flash devices</h3>
-      <p>USB flashing needs the WebSerial API, which only works in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Reopen this page in one of those to continue.</p>
+      <h3 data-i18n="browser.heading">This browser can't update devices</h3>
+      <p data-i18n="browser.body">The update tool only works in Google Chrome or Microsoft Edge. Please open this page in one of those, then come back here.</p>
     </div>
 
-    <h2>Pick a device</h2>
+    <h2 data-i18n="landing.pick">Pick a device</h2>
     <div class="devices">
     <!-- DEVICES_START -->
     <a class="card" href="all-in-one-controller/">
-      <h3>All-In-One Controller 2.0</h3>
-      <p class="desc">Battery-powered Bluetooth servo controller for LEGO train switches. Powered Up compatible.</p>
-      <span class="chip">ESP32 · USB-C</span>
+      <img class="card-image" src="all-in-one-controller/product.webp" alt="" loading="lazy">
+      <div class="card-body">
+        <h3>All-In-One Controller 2.0</h3>
+        <p class="desc" data-i18n="card.aio.desc">Battery-powered Bluetooth servo controller for LEGO train switches. Powered Up compatible.</p>
+        <span class="chip">ESP32 · Micro-USB</span>
+      </div>
     </a>
     <a class="card" href="switch-controller/">
-      <h3>Switch Controller</h3>
-      <p class="desc">Compact Bluetooth servo controller for a single LEGO train switch. Powered Up compatible.</p>
-      <span class="chip">ESP32 · USB-C</span>
+      <img class="card-image" src="switch-controller/product.webp" alt="" loading="lazy">
+      <div class="card-body">
+        <h3>Switch Controller</h3>
+        <p class="desc" data-i18n="card.sc.desc">Compact Bluetooth servo controller for a single LEGO train switch. Powered Up compatible.</p>
+        <span class="chip">ESP32 · Micro-USB</span>
+      </div>
     </a>
     <!-- DEVICES_END -->
     </div>
 
     <footer>
-      <p>Made by <a href="https://www.trixbrix.eu" rel="noopener">Trixbrix</a> · Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
-      <p>USB only · Chromium browsers only</p>
+      <p><span data-i18n="footer.madeBy">Made by</span> <a href="https://www.trixbrix.eu" rel="noopener">Trixbrix</a> · <span data-i18n="footer.poweredBy">Powered by</span> <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+      <p data-i18n="footer.usbOnly">USB only · Chromium browsers only</p>
     </footer>
   </main>
 
@@ -52,6 +76,16 @@
     if (!('serial' in navigator)) {
       document.getElementById('browser-warning').hidden = false;
     }
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('trixbrix-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('trixbrix-theme', 'dark');
+      }
+    });
   </script>
 </body>
 </html>

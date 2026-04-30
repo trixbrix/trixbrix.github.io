@@ -29,22 +29,48 @@ for meta in "$repo_root"/*/meta.json; do
     name=$(jq -r '.name // empty' "$meta")
     desc=$(jq -r '.description // empty' "$meta")
     chip=$(jq -r '.chip // empty' "$meta")
+    usb=$(jq -r '.usb // empty' "$meta")
+    i18n_key=$(jq -r '.i18n_key // empty' "$meta")
   else
     name=$(grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
     desc=$(grep -oE '"description"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
     chip=$(grep -oE '"chip"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
+    usb=$(grep -oE '"usb"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
+    i18n_key=$(grep -oE '"i18n_key"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
   fi
   [[ -z "$name" ]] && name="$device"
+  case "$usb" in
+    micro-usb) usb_label="Micro-USB" ;;
+    usb-c)     usb_label="USB-C" ;;
+    "")        usb_label="" ;;
+    *)         usb_label="$usb" ;;
+  esac
 
   cards+="    <a class=\"card\" href=\"$device/\">"$'\n'
-  cards+="      <h3>$name</h3>"$'\n'
+  if [[ -f "$device_dir/product.webp" ]]; then
+    cards+="      <img class=\"card-image\" src=\"$device/product.webp\" alt=\"\" loading=\"lazy\">"$'\n'
+  elif [[ -f "$device_dir/product.png" ]]; then
+    cards+="      <img class=\"card-image\" src=\"$device/product.png\" alt=\"\" loading=\"lazy\">"$'\n'
+  elif [[ -f "$device_dir/product.jpg" ]]; then
+    cards+="      <img class=\"card-image\" src=\"$device/product.jpg\" alt=\"\" loading=\"lazy\">"$'\n'
+  fi
+  cards+="      <div class=\"card-body\">"$'\n'
+  cards+="        <h3>$name</h3>"$'\n'
   if [[ -n "$desc" ]]; then
-    cards+="      <p class=\"desc\">$desc</p>"$'\n'
+    if [[ -n "$i18n_key" ]]; then
+      cards+="        <p class=\"desc\" data-i18n=\"card.${i18n_key}.desc\">$desc</p>"$'\n'
+    else
+      cards+="        <p class=\"desc\">$desc</p>"$'\n'
+    fi
   fi
-  if [[ -n "$chip" ]]; then
+  if [[ -n "$chip" || -n "$usb_label" ]]; then
     chip_upper=$(echo "$chip" | tr '[:lower:]' '[:upper:]')
-    cards+="      <span class=\"chip\">$chip_upper · USB-C</span>"$'\n'
+    parts=""
+    [[ -n "$chip_upper" ]] && parts="$chip_upper"
+    [[ -n "$usb_label" ]] && parts="${parts:+$parts · }$usb_label"
+    cards+="        <span class=\"chip\">$parts</span>"$'\n'
   fi
+  cards+="      </div>"$'\n'
   cards+="    </a>"$'\n'
 done
 shopt -u nullglob

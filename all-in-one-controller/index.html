@@ -5,59 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>All-In-One Controller 2.0 — Trixbrix Software</title>
   <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="icon" type="image/png" href="../assets/logo.png">
+  <link rel="apple-touch-icon" href="../assets/logo.png">
   <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function() {
+      var t = localStorage.getItem('trixbrix-theme');
+      if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+    })();
+    (function() {
+      if (!('serial' in navigator) || navigator.serial.__trixbrixWrapped) return;
+      var orig = navigator.serial.requestPort.bind(navigator.serial);
+      var espFilters = [
+        { usbVendorId: 0x10C4 },
+        { usbVendorId: 0x1A86 },
+        { usbVendorId: 0x0403 },
+        { usbVendorId: 0x303A },
+        { usbVendorId: 0x067B },
+      ];
+      navigator.serial.requestPort = function(opts) {
+        opts = opts || {};
+        var filters = (opts.filters && opts.filters.length) ? opts.filters.concat(espFilters) : espFilters;
+        return orig(Object.assign({}, opts, { filters: filters }));
+      };
+      navigator.serial.__trixbrixWrapped = true;
+    })();
+  </script>
+  <script src="../assets/i18n.js" defer></script>
   <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 </head>
 <body>
+  <div class="top-controls">
+    <div class="lang-switcher">
+      <select id="lang-select" data-i18n-aria="lang.label" aria-label="Language" title="Language"></select>
+    </div>
+    <button class="theme-toggle" id="theme-toggle" type="button" data-i18n-aria="theme.toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+    </button>
+  </div>
   <main>
     <a class="site-header" href="../" aria-label="Trixbrix Software home">
-      <span class="logo-mark"><img src="../assets/logo.png" alt=""></span>
-      <span class="wordmark">Trixbrix<span class="sub">Software</span></span>
+      <img class="logo-mark" src="../assets/logo.png" alt="">
+      <span class="wordmark">Trixbrix<span class="sub" data-i18n="brand.sub">Software</span></span>
     </a>
 
-    <a class="back-link" href="../">← All devices</a>
+    <a class="back-link" href="../" data-i18n="nav.allDevices">← All devices</a>
 
-    <section class="hero">
-      <span class="eyebrow">Firmware updater</span>
-      <h1>All-In-One Controller 2.0<span id="version" class="version-tag">…</span></h1>
-      <p class="tagline">Battery-powered Bluetooth servo controller for LEGO train switches. Plug it into your computer with a USB cable, then click <strong>Install firmware</strong> below.</p>
+    <section class="hero hero-product">
+      <div>
+        <span class="eyebrow" data-i18n="device.eyebrow">Firmware update</span>
+        <h1>All-In-One Controller 2.0<span id="version" class="version-tag">…</span></h1>
+        <p class="tagline" data-i18n="device.aio.tagline">Battery-powered Bluetooth servo controller for LEGO train switches. Follow the three steps below to install the latest firmware on your controller.</p>
+      </div>
+      <img class="hero-image" src="./product.webp" alt="All-In-One Controller 2.0" loading="lazy">
     </section>
 
     <div id="browser-warning" class="banner" hidden>
-      <h3>Heads up — this browser can't flash devices</h3>
-      <p>USB flashing needs the WebSerial API, which only works in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Reopen this page in one of those to continue.</p>
+      <h3 data-i18n="browser.heading">This browser can't update devices</h3>
+      <p data-i18n="browser.body">The update tool only works in Google Chrome or Microsoft Edge. Please open this page in one of those, then come back here.</p>
     </div>
 
     <section class="panel">
-      <h2>Install firmware</h2>
-      <p>Connect the device to your computer with a USB cable, then click the button. You'll be asked to pick the serial port — look for one labeled <code>USB-SERIAL</code>, <code>CP210x</code>, or <code>CH340</code>.</p>
+      <h2 data-i18n="install.heading">Install firmware</h2>
+      <ol class="steps">
+        <li data-i18n="install.step1">Plug your controller into the computer with the USB cable.</li>
+        <li data-i18n-html="install.step2">Click <strong>Install firmware</strong>.</li>
+        <li data-i18n-html="install.step3">A small window will pop up asking you to pick a device — choose the one that appeared when you plugged in (usually the only option), then click <em>Connect</em>.</li>
+      </ol>
+      <p class="step-hint" data-i18n-html="install.tip"><strong>Tip:</strong> if you see more than one option in the list, look for a name containing <code>USB-SERIAL</code>, <code>CP210x</code>, or <code>CH340</code>.</p>
 
       <div class="install-row">
         <esp-web-install-button id="installer" manifest="./manifest.json">
-          <button id="install-btn" class="btn-install" slot="activate">Install firmware</button>
+          <button id="install-btn" class="btn-install" slot="activate" data-i18n="install.button">Install firmware</button>
         </esp-web-install-button>
 
         <label class="erase-toggle">
           <input type="checkbox" id="erase-first">
           <span class="box" aria-hidden="true"></span>
-          <span>Also factory-reset</span>
+          <span data-i18n="erase.label">Also factory-reset</span>
         </label>
       </div>
 
       <div class="erase-warning" id="erase-warning" hidden>
         <span class="icon" aria-hidden="true">⚠️</span>
         <div>
-          <strong>This wipes all saved settings.</strong> Working mode, paired LEGO Powered Up network ID, switch color, and port assignments will be erased. The device boots up as if brand new. Only use this for a true factory reset or to recover from a corrupted state.
+          <strong data-i18n="erase.warningTitle">This wipes all saved settings.</strong>
+          <span data-i18n="erase.warningBody.aio"> Working mode, paired LEGO Powered Up network ID, switch color, and port assignments will be erased. The device boots up as if brand new. Only use this for a true factory reset or to recover from a corrupted state.</span>
         </div>
       </div>
     </section>
 
-    <h2>Version history</h2>
-    <div id="versions" class="versions"><p class="muted">Loading…</p></div>
+    <h2 data-i18n="versions.heading">Version history</h2>
+    <div id="versions" class="versions"><p class="muted" data-i18n="versions.loading">Loading…</p></div>
 
     <footer>
-      <p>Made by <a href="https://www.trixbrix.eu" rel="noopener">Trixbrix</a> · Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
-      <p><a href="../">All devices</a></p>
+      <p><span data-i18n="footer.madeBy">Made by</span> <a href="https://www.trixbrix.eu" rel="noopener">Trixbrix</a> · <span data-i18n="footer.poweredBy">Powered by</span> <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+      <p><a href="../" data-i18n="footer.allDevices">All devices</a></p>
     </footer>
   </main>
 
@@ -66,7 +110,17 @@
       document.getElementById('browser-warning').hidden = false;
     }
 
-    // Factory-reset checkbox toggles erase-first attribute on the installer + warning + button style
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('trixbrix-theme', 'light');
+      } else {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        localStorage.setItem('trixbrix-theme', 'dark');
+      }
+    });
+
     const installer = document.getElementById('installer');
     const installBtn = document.getElementById('install-btn');
     const eraseCheckbox = document.getElementById('erase-first');
@@ -77,12 +131,34 @@
       installer.toggleAttribute('erase-first', on);
       eraseWarning.hidden = !on;
       installBtn.classList.toggle('is-erase', on);
-      installBtn.textContent = on ? 'Install + factory reset' : 'Install firmware';
     });
 
-    // Load version history
     const versionsEl = document.getElementById('versions');
     const versionTag = document.getElementById('version');
+
+    const T = (k) => (window.__T__ ? window.__T__(k) : k);
+
+    let versionsData = null;
+    let manifestData = null;
+
+    function renderVersions() {
+      if (!versionsData || !versionsData.versions || versionsData.versions.length === 0) {
+        versionsEl.innerHTML = `<p class="muted">${T('versions.empty')}</p>`;
+        return;
+      }
+      versionsEl.innerHTML = versionsData.versions.map(v => {
+        const isCurrent = manifestData && v.version === manifestData.version;
+        const dateStr = v.date ? `<span class="when">${v.date}</span>` : '';
+        const tag = isCurrent ? `<span class="version-pill">${T('versions.current')}</span>` : '';
+        const body = v.changelog && v.changelog.trim()
+          ? window.marked.parse(v.changelog)
+          : `<p class="muted">${T('versions.noNotes')}</p>`;
+        return `<article class="version">
+          <header><h3>v${v.version}</h3>${dateStr}${tag}</header>
+          <div class="changelog">${body}</div>
+        </article>`;
+      }).join('');
+    }
 
     try {
       const [{ marked }, manifest, history] = await Promise.all([
@@ -90,27 +166,14 @@
         fetch('./manifest.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
         fetch('./versions.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : null),
       ]);
-
+      window.marked = marked;
+      manifestData = manifest;
+      versionsData = history;
       versionTag.textContent = manifest && manifest.version ? 'v' + manifest.version : '';
-
-      if (!history || !history.versions || history.versions.length === 0) {
-        versionsEl.innerHTML = '<p class="muted">No versions published yet.</p>';
-      } else {
-        versionsEl.innerHTML = history.versions.map(v => {
-          const isCurrent = manifest && v.version === manifest.version;
-          const dateStr = v.date ? `<span class="when">${v.date}</span>` : '';
-          const tag = isCurrent ? '<span class="version-pill">current</span>' : '';
-          const body = v.changelog && v.changelog.trim()
-            ? marked.parse(v.changelog)
-            : '<p class="muted">No release notes.</p>';
-          return `<article class="version">
-            <header><h3>v${v.version}</h3>${dateStr}${tag}</header>
-            <div class="changelog">${body}</div>
-          </article>`;
-        }).join('');
-      }
+      renderVersions();
+      document.addEventListener('i18n:changed', renderVersions);
     } catch (e) {
-      versionsEl.innerHTML = `<p class="muted">Could not load version history: ${e.message}</p>`;
+      versionsEl.innerHTML = `<p class="muted">${T('versions.error')} ${e.message}</p>`;
     }
   </script>
 </body>
