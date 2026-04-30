@@ -28,9 +28,11 @@ for meta in "$repo_root"/*/meta.json; do
   if command -v jq >/dev/null 2>&1; then
     name=$(jq -r '.name // empty' "$meta")
     desc=$(jq -r '.description // empty' "$meta")
+    chip=$(jq -r '.chip // empty' "$meta")
   else
     name=$(grep -oE '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
     desc=$(grep -oE '"description"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
+    chip=$(grep -oE '"chip"[[:space:]]*:[[:space:]]*"[^"]*"' "$meta" | head -1 | sed -E 's/.*"([^"]*)"$/\1/')
   fi
   [[ -z "$name" ]] && name="$device"
 
@@ -38,6 +40,10 @@ for meta in "$repo_root"/*/meta.json; do
   cards+="      <h3>$name</h3>"$'\n'
   if [[ -n "$desc" ]]; then
     cards+="      <p class=\"desc\">$desc</p>"$'\n'
+  fi
+  if [[ -n "$chip" ]]; then
+    chip_upper=$(echo "$chip" | tr '[:lower:]' '[:upper:]')
+    cards+="      <span class=\"chip\">$chip_upper · USB-C</span>"$'\n'
   fi
   cards+="    </a>"$'\n'
 done

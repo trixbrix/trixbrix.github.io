@@ -10,39 +10,54 @@
 </head>
 <body>
   <main>
-    <p><a href="../">&larr; All devices</a></p>
+    <a class="site-header" href="../" aria-label="Trixbrix Software home">
+      <span class="logo-mark"><img src="../assets/logo.png" alt=""></span>
+      <span class="wordmark">Trixbrix<span class="sub">Software</span></span>
+    </a>
 
-    <h1>Switch Controller<span id="version" class="version-tag">…</span></h1>
-    <p class="tagline">Compact Bluetooth servo controller for a single LEGO train switch. Plug it into your computer via USB and click <strong>Connect</strong> to install the latest firmware.</p>
+    <a class="back-link" href="../">← All devices</a>
+
+    <section class="hero">
+      <span class="eyebrow">Firmware updater</span>
+      <h1>Switch Controller<span id="version" class="version-tag">…</span></h1>
+      <p class="tagline">Compact Bluetooth servo controller for a single LEGO train switch. Plug it into your computer with a USB cable, then click <strong>Install firmware</strong> below.</p>
+    </section>
 
     <div id="browser-warning" class="banner" hidden>
-      <h3>Unsupported browser</h3>
-      <p>Firmware flashing requires the WebSerial API, which is only available in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Please open this page in one of those.</p>
+      <h3>Heads up — this browser can't flash devices</h3>
+      <p>USB flashing needs the WebSerial API, which only works in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Reopen this page in one of those to continue.</p>
     </div>
 
-    <h2>Install firmware</h2>
-    <p>Connect the device to your computer with a USB cable, then click the button below. You'll be asked to pick the serial port for the device.</p>
-    <div class="install-row">
-      <esp-web-install-button manifest="./manifest.json"></esp-web-install-button>
-    </div>
+    <section class="panel">
+      <h2>Install firmware</h2>
+      <p>Connect the device to your computer with a USB cable, then click the button. You'll be asked to pick the serial port — look for one labeled <code>USB-SERIAL</code>, <code>CP210x</code>, or <code>CH340</code>.</p>
 
-    <details>
-      <summary>Advanced: factory reset (full erase)</summary>
-      <div class="warning">
-        <strong>⚠️ This will wipe all saved settings on the device:</strong> paired LEGO Powered Up network ID, switch color, position calibration. The device will reboot as if brand new. Only use this for a factory reset or to recover from a corrupted state.
-      </div>
       <div class="install-row">
-        <esp-web-install-button manifest="./manifest.json" erase-first>
-          <button slot="activate">Install with full erase</button>
+        <esp-web-install-button id="installer" manifest="./manifest.json">
+          <button id="install-btn" class="btn-install" slot="activate">Install firmware</button>
         </esp-web-install-button>
+
+        <label class="erase-toggle">
+          <input type="checkbox" id="erase-first">
+          <span class="box" aria-hidden="true"></span>
+          <span>Also factory-reset</span>
+        </label>
       </div>
-    </details>
+
+      <div class="erase-warning" id="erase-warning" hidden>
+        <span class="icon" aria-hidden="true">⚠️</span>
+        <div>
+          <strong>This wipes all saved settings.</strong> Paired LEGO Powered Up network ID and switch color will be erased. The device boots up as if brand new. Only use this for a true factory reset or to recover from a corrupted state.
+        </div>
+      </div>
+    </section>
 
     <h2>Version history</h2>
     <div id="versions" class="versions"><p class="muted">Loading…</p></div>
 
     <footer>
-      <p>Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+      <p>Made by <a href="https://www.trixbrix.eu" rel="noopener">Trixbrix</a> · Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+      <p><a href="../">All devices</a></p>
     </footer>
   </main>
 
@@ -50,6 +65,19 @@
     if (!('serial' in navigator)) {
       document.getElementById('browser-warning').hidden = false;
     }
+
+    const installer = document.getElementById('installer');
+    const installBtn = document.getElementById('install-btn');
+    const eraseCheckbox = document.getElementById('erase-first');
+    const eraseWarning = document.getElementById('erase-warning');
+
+    eraseCheckbox.addEventListener('change', () => {
+      const on = eraseCheckbox.checked;
+      installer.toggleAttribute('erase-first', on);
+      eraseWarning.hidden = !on;
+      installBtn.classList.toggle('is-erase', on);
+      installBtn.textContent = on ? 'Install + factory reset' : 'Install firmware';
+    });
 
     const versionsEl = document.getElementById('versions');
     const versionTag = document.getElementById('version');
@@ -68,13 +96,13 @@
       } else {
         versionsEl.innerHTML = history.versions.map(v => {
           const isCurrent = manifest && v.version === manifest.version;
-          const dateStr = v.date ? `<span class="muted">— ${v.date}</span>` : '';
-          const tag = isCurrent ? ' <span class="version-pill">current</span>' : '';
+          const dateStr = v.date ? `<span class="when">${v.date}</span>` : '';
+          const tag = isCurrent ? '<span class="version-pill">current</span>' : '';
           const body = v.changelog && v.changelog.trim()
             ? marked.parse(v.changelog)
             : '<p class="muted">No release notes.</p>';
           return `<article class="version">
-            <header><h3>v${v.version} ${dateStr}${tag}</h3></header>
+            <header><h3>v${v.version}</h3>${dateStr}${tag}</header>
             <div class="changelog">${body}</div>
           </article>`;
         }).join('');

@@ -4,33 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trixbrix Software</title>
+  <meta name="description" content="Firmware and tools for Trixbrix devices. Update straight from your browser — plug in, click install, done.">
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
   <main>
-    <h1>Trixbrix Software</h1>
-    <p class="tagline">Firmware and tools for Trixbrix devices. Pick a device below to update its firmware directly from your browser — plug in via USB, click install, done.</p>
+    <a class="site-header" href="./" aria-label="Trixbrix Software home">
+      <span class="logo-mark"><img src="assets/logo.png" alt=""></span>
+      <span class="wordmark">Trixbrix<span class="sub">Software</span></span>
+    </a>
+
+    <section class="hero">
+      <span class="eyebrow">Browser-based firmware updater</span>
+      <h1>Snap. Plug. Flash.</h1>
+      <p class="tagline">No installer, no Python, no fuss. Open this page in Chrome or Edge, plug your Trixbrix device in over USB, and click one button to install the latest firmware.</p>
+    </section>
 
     <div id="browser-warning" class="banner" hidden>
-      <h3>Unsupported browser</h3>
-      <p>Firmware flashing requires the WebSerial API, which is only available in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Please open this page in one of those to continue.</p>
+      <h3>Heads up — this browser can't flash devices</h3>
+      <p>USB flashing needs the WebSerial API, which only works in Chromium-based browsers (Chrome, Edge, Brave, Arc, Opera). Reopen this page in one of those to continue.</p>
     </div>
 
-    <h2>Devices</h2>
+    <h2>Pick a device</h2>
+    <div class="devices">
     <!-- DEVICES_START -->
     <a class="card" href="all-in-one-controller/">
       <h3>All-In-One Controller 2.0</h3>
       <p class="desc">Battery-powered Bluetooth servo controller for LEGO train switches. Powered Up compatible.</p>
+      <span class="chip">ESP32 · USB-C</span>
     </a>
     <a class="card" href="switch-controller/">
       <h3>Switch Controller</h3>
       <p class="desc">Compact Bluetooth servo controller for a single LEGO train switch. Powered Up compatible.</p>
+      <span class="chip">ESP32 · USB-C</span>
     </a>
     <!-- DEVICES_END -->
+    </div>
 
     <footer>
-      <p>Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a>. USB flashing only — no installer required.</p>
+      <p>Made by <a href="https://www.trixbrix.eu" rel="noopener">Trixbrix</a> · Powered by <a href="https://esphome.github.io/esp-web-tools/" rel="noopener">esp-web-tools</a></p>
+      <p>USB only · Chromium browsers only</p>
     </footer>
   </main>
 
