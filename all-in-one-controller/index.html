@@ -68,40 +68,24 @@
       <p data-i18n="browser.body">The update tool only works in Google Chrome or Microsoft Edge. Please open this page in one of those, then come back here.</p>
     </div>
 
-    <section class="detect-panel" id="detect-panel" data-state="empty" hidden>
-      <span class="detect-empty-prompt" data-i18n="detect.emptyPrompt">Want to know what's already on your device?</span>
-      <div class="detect-result">
-        <div class="detect-col detect-current">
-          <span class="label" data-i18n="detect.onDevice">On your device</span>
-          <span class="value" id="detect-current-value">—</span>
-          <span class="sub" id="detect-current-sub"></span>
-        </div>
-        <div class="detect-arrow" aria-hidden="true">→</div>
-        <div class="detect-col detect-target">
-          <span class="label" data-i18n="detect.willInstall">Will install</span>
-          <span class="value" id="detect-target-value">—</span>
-        </div>
-      </div>
-      <p class="detect-status" id="detect-status" data-tone="info"></p>
-      <button class="btn-secondary" id="detect-btn" type="button" data-i18n="detect.button">Check what's installed</button>
-    </section>
+    <section class="flow-panel" id="flow-panel" data-state="empty">
+      <div class="flow-visual" id="flow-visual" aria-hidden="true"></div>
+      <h2 class="flow-title" id="flow-title">Connect your device</h2>
+      <p class="flow-description" id="flow-description"></p>
 
-    <section class="panel">
-      <h2 data-i18n="install.heading">Install firmware</h2>
-      <ol class="steps">
-        <li data-i18n="install.step1">Plug your controller into the computer with the USB cable.</li>
-        <li data-i18n-html="install.step2">Click <strong>Install firmware</strong>.</li>
-        <li data-i18n-html="install.step3">A small window will pop up asking you to pick a device — choose the one that appeared when you plugged in (usually the only option), then click <em>Connect</em>.</li>
-        <li id="step-erase" data-i18n-html="install.step4">When asked <em>Erase device?</em>, leave the box unchecked to keep your saved settings (paired remote, switch color, port assignments). Then click <em>Next</em> and <em>Install</em>.</li>
-      </ol>
-      <p class="step-hint" data-i18n-html="install.tip"><strong>Tip:</strong> if you see more than one option in the list, look for a name containing <code>USB-SERIAL</code>, <code>CP210x</code>, or <code>CH340</code>.</p>
-
-      <div class="install-row">
+      <div class="flow-actions">
         <esp-web-install-button id="installer" manifest="./manifest.json">
-          <button id="install-btn" class="btn-install" slot="activate" data-i18n="install.button">Install firmware</button>
+          <button id="install-btn" class="btn-install" slot="activate">Connect &amp; check</button>
         </esp-web-install-button>
+        <a class="btn-install link-as-button" id="goto-other-btn" hidden></a>
       </div>
-      <p class="install-verify-hint" data-i18n-html="install.verifyFirst">Click <strong>Check what's installed</strong> above to verify your device before installing.</p>
+
+      <div class="flow-secondary">
+        <button class="btn-secondary" id="check-different-btn" type="button" hidden></button>
+        <button class="btn-secondary" id="legacy-override-btn" type="button" hidden></button>
+      </div>
+
+      <p class="flow-tip" id="flow-tip" hidden></p>
     </section>
 
     <h2 data-i18n="versions.heading">Version history</h2>
@@ -137,206 +121,289 @@
     let versionsData = null;
     let manifestData = null;
 
-    // ---- Firmware detection (improv-serial) ---------------------------------
+    // ---- Single guided flow (improv-serial driven) -------------------------
+    // The user lands on the page in `empty` state. Clicking the primary
+    // button (esp-web-tools' install button) opens the port chooser. Our
+    // wrapper around requestPort probes the picked port via improv-serial,
+    // updates state, and decides whether to proceed (return port) or abort
+    // (return null). Each state in the flow has its own headline, helper
+    // text, and action set, all rendered into the same panel.
     const EXPECTED_FIRMWARE_NAME = 'Trixbrix All-In-One Controller 2.0';
-    // Maps known Trixbrix firmware identities to the page that updates them,
-    // so when the user plugs in the wrong device we can offer a one-click jump.
+    const EXPECTED_DEVICE_LABEL  = 'All-In-One Controller 2.0';
     const FIRMWARE_PAGES = {
       'Trixbrix All-In-One Controller 2.0': { path: '../all-in-one-controller/', label: 'All-In-One Controller 2.0' },
       'Trixbrix Switch Controller':         { path: '../switch-controller/',     label: 'Switch Controller for Original Lego Switches' },
     };
-    const detectPanel  = document.getElementById('detect-panel');
-    const detectBtn    = document.getElementById('detect-btn');
-    const detectStatus = document.getElementById('detect-status');
-    const detectCurVal = document.getElementById('detect-current-value');
-    const detectCurSub = document.getElementById('detect-current-sub');
-    const detectTgtVal = document.getElementById('detect-target-value');
-    const stepErase    = document.getElementById('step-erase');
-    const installPanel = document.querySelector('.panel');
+
+    const flowPanel    = document.getElementById('flow-panel');
+    const flowVisual   = document.getElementById('flow-visual');
+    const flowTitle    = document.getElementById('flow-title');
+    const flowDesc     = document.getElementById('flow-description');
+    const flowTip      = document.getElementById('flow-tip');
+    const installBtn   = document.getElementById('install-btn');
+    const gotoBtn      = document.getElementById('goto-other-btn');
+    const differentBtn = document.getElementById('check-different-btn');
+    const legacyBtn    = document.getElementById('legacy-override-btn');
+
     let detectState = { kind: 'empty' };
+    // Flags set by secondary buttons before triggering installBtn.click(),
+    // consumed inside the requestPort wrap.
+    let _legacyOverride = false;
+    let _forceInstall   = false;
+    let _probeOnly      = false;
 
-    function renderDetect() {
-      if (!('serial' in navigator)) return; // unsupported browser; nothing to show
-      const targetVer = manifestData && manifestData.version
-        ? 'v' + manifestData.version : '—';
-      detectTgtVal.textContent = targetVer;
-
-      const s = detectState;
-      if (s.kind === 'empty') {
-        detectPanel.hidden = false;
-        detectPanel.dataset.state = 'empty';
-        detectPanel.dataset.noTarget = 'true';
-        detectStatus.hidden = true;
-        detectBtn.disabled = false;
-        detectBtn.textContent = T('detect.button');
-        return;
-      }
-      detectPanel.dataset.state = s.kind;
-      detectPanel.dataset.noTarget = 'false';
-      detectBtn.disabled = (s.kind === 'detecting');
-      detectBtn.textContent = (s.kind === 'detecting')
-        ? T('detect.detecting')
-        : T('detect.tryAgain');
-      detectStatus.hidden = false;
-
-      if (s.kind === 'detecting') {
-        detectCurVal.textContent = '…';
-        detectCurSub.textContent = '';
-        detectStatus.dataset.tone = 'info';
-        detectStatus.innerHTML = T('detect.detecting');
-        return;
-      }
-
-      if (s.kind === 'detected') {
-        detectCurVal.textContent = 'v' + s.version;
-        detectCurSub.textContent = '';
-        const same = manifestData && s.version === manifestData.version;
-        if (same) {
-          detectPanel.dataset.noTarget = 'true';
-          detectStatus.dataset.tone = 'ok';
-          detectStatus.innerHTML = T('detect.upToDate');
-        } else {
-          detectStatus.dataset.tone = 'info';
-          detectStatus.innerHTML = T('detect.outdated');
-        }
-        // Hide the "Erase device?" step — improv responded, so esp-web-tools
-        // will offer the Update path with no Erase prompt.
-        if (stepErase) stepErase.hidden = true;
-        return;
-      }
-
-      // Install is gated on a successful verify: enabled only when we have
-      // confirmed the right firmware (`detected`) or a v1 device with no
-      // improv response (`legacy`). Every other state — empty, detecting,
-      // wrongDevice, error — keeps the install button blocked.
-      const allowInstall = (s.kind === 'detected' || s.kind === 'legacy');
-      if (installPanel) {
-        installPanel.classList.toggle('install-blocked', !allowInstall);
-        // Inline "verify first" hint shows only when nothing has been
-        // detected yet — for wrongDevice/error the detect panel above
-        // already explains what's wrong.
-        installPanel.classList.toggle('show-verify-hint', s.kind === 'empty' || s.kind === 'detecting');
-      }
-
-      if (s.kind === 'wrongDevice') {
-        detectCurVal.textContent = '⚠';
-        detectCurSub.textContent = s.firmware ? s.firmware.replace(/^Trixbrix /, '') : '';
-        detectStatus.dataset.tone = 'error';
-        const suggested = FIRMWARE_PAGES[s.firmware];
-        if (suggested) {
-          detectStatus.innerHTML = T('detect.wrongDevice')
-            .replace('{detected}', `<strong>${s.firmware}</strong>`)
-            .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`)
-            .replace('{link}', `<a href="${suggested.path}">${suggested.label}</a>`);
-        } else {
-          detectStatus.innerHTML = T('detect.unknownDevice')
-            .replace('{detected}', `<strong>${s.firmware || '?'}</strong>`)
-            .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`);
-        }
-        return;
-      }
-
-      if (s.kind === 'legacy') {
-        // Only one pre-improv firmware ever shipped, so this is unambiguously v1.
-        detectCurVal.textContent = 'v1';
-        detectCurSub.textContent = '';
-        detectStatus.dataset.tone = 'warn';
-        detectStatus.innerHTML = T('detect.legacyDetected');
-        // Step 4 stays visible — this user will see the Erase prompt.
-        if (stepErase) stepErase.hidden = false;
-        return;
-      }
-
-      if (s.kind === 'error') {
-        detectCurVal.textContent = '—';
-        detectCurSub.textContent = '';
-        detectStatus.dataset.tone = 'error';
-        detectStatus.innerHTML = T('detect.connectFailed');
-        return;
+    function applyProbeResult(info) {
+      if (info && info.firmware === EXPECTED_FIRMWARE_NAME) {
+        detectState = { kind: 'detected', version: info.version };
+      } else if (info) {
+        detectState = { kind: 'wrongDevice', firmware: info.firmware };
+      } else {
+        detectState = { kind: 'noResponse' };
       }
     }
 
-    let _detectionInFlight = false;
+    function isUpToDate() {
+      return detectState.kind === 'detected'
+        && manifestData && detectState.version === manifestData.version;
+    }
 
-    async function runDetect({ silent = false } = {}) {
-      detectState = { kind: 'detecting' };
-      renderDetect();
-      _detectionInFlight = true;
-      try {
-        const info = await window.__trixbrixDetect({ useExisting: silent });
-        if (!info) {
-          detectState = { kind: silent ? 'empty' : 'legacy' };
-        } else if (info.firmware !== EXPECTED_FIRMWARE_NAME) {
-          detectState = { kind: 'wrongDevice', firmware: info.firmware };
-        } else {
-          detectState = { kind: 'detected', version: info.version };
-        }
-      } catch (e) {
-        if (silent) {
-          detectState = { kind: 'empty' };
-        } else {
-          detectState = { kind: 'error', message: e && e.message };
-        }
-      } finally {
-        _detectionInFlight = false;
+    function setVisual(html) { flowVisual.innerHTML = html; }
+    function visualVersion(from, to, kind) {
+      // kind: 'update' (from→to) | 'ok' (single value with check) | 'mark' (icon)
+      if (kind === 'ok') {
+        return `<div class="flow-version-display ok">
+          <span class="version-num">v${from}</span>
+          <span class="check" aria-hidden="true">✓</span>
+        </div>`;
       }
-      renderDetect();
+      if (kind === 'update') {
+        return `<div class="flow-version-display update">
+          <span class="version-num from">v${from}</span>
+          <span class="version-arrow" aria-hidden="true">→</span>
+          <span class="version-num to">v${to}</span>
+        </div>`;
+      }
+      return '';
+    }
+    function visualIcon(symbol, tone) {
+      return `<div class="flow-icon" data-tone="${tone || 'info'}" aria-hidden="true">${symbol}</div>`;
+    }
+
+    function renderFlow() {
+      if (!('serial' in navigator)) return;
+
+      // Reset all UI bits to defaults each render
+      flowTip.hidden = true;
+      gotoBtn.hidden = true;
+      differentBtn.hidden = true;
+      legacyBtn.hidden = true;
+      installBtn.hidden = false;
+      installBtn.disabled = false;
+      flowPanel.dataset.state = detectState.kind;
+
+      const targetV = manifestData && manifestData.version ? manifestData.version : '?';
+
+      switch (detectState.kind) {
+        case 'empty': {
+          setVisual(visualIcon('⚡', 'info'));
+          flowTitle.textContent = T('flow.initial.title');
+          flowDesc.innerHTML    = T('flow.initial.description');
+          installBtn.textContent = T('flow.initial.button');
+          flowTip.innerHTML = T('install.tip');
+          flowTip.hidden = false;
+          break;
+        }
+        case 'detecting': {
+          setVisual(visualIcon('⏳', 'info'));
+          flowTitle.textContent = T('flow.detecting.title');
+          flowDesc.innerHTML    = T('flow.detecting.description');
+          installBtn.disabled = true;
+          installBtn.textContent = T('flow.detecting.title');
+          break;
+        }
+        case 'detected': {
+          if (isUpToDate()) {
+            setVisual(visualVersion(detectState.version, null, 'ok'));
+            flowTitle.textContent = T('flow.upToDate.title');
+            flowDesc.innerHTML    = T('flow.upToDate.description');
+            installBtn.textContent = T('flow.upToDate.button')
+              .replace('{version}', `v${detectState.version}`);
+          } else {
+            setVisual(visualVersion(detectState.version, targetV, 'update'));
+            flowTitle.textContent = T('flow.updateAvailable.title');
+            flowDesc.innerHTML    = T('flow.updateAvailable.description');
+            installBtn.textContent = T('flow.updateAvailable.button')
+              .replace('{version}', `v${targetV}`);
+          }
+          differentBtn.hidden = false;
+          differentBtn.textContent = T('flow.checkDifferent');
+          break;
+        }
+        case 'wrongDevice': {
+          setVisual(visualIcon('⚠', 'warn'));
+          flowTitle.textContent = T('flow.wrongDevice.title');
+          flowDesc.innerHTML    = T('flow.wrongDevice.description')
+            .replace('{detected}', `<strong>${detectState.firmware}</strong>`)
+            .replace('{expected}', `<strong>${EXPECTED_DEVICE_LABEL}</strong>`);
+          installBtn.hidden = true;
+          const suggested = FIRMWARE_PAGES[detectState.firmware];
+          if (suggested) {
+            gotoBtn.hidden = false;
+            gotoBtn.href = suggested.path;
+            gotoBtn.textContent = T('flow.wrongDevice.gotoButton')
+              .replace('{label}', suggested.label);
+          }
+          differentBtn.hidden = false;
+          differentBtn.textContent = T('flow.checkDifferent');
+          break;
+        }
+        case 'noResponse': {
+          setVisual(visualIcon('?', 'warn'));
+          flowTitle.textContent = T('flow.noResponse.title');
+          flowDesc.innerHTML    = T('flow.noResponse.description');
+          installBtn.textContent = T('flow.noResponse.retryButton');
+          legacyBtn.hidden = false;
+          legacyBtn.textContent = T('flow.noResponse.legacyButton');
+          break;
+        }
+        case 'legacy': {
+          setVisual(visualVersion('1', targetV, 'update'));
+          flowTitle.textContent = T('flow.legacyInstalling.title');
+          flowDesc.innerHTML    = T('flow.legacyInstalling.description');
+          installBtn.disabled = true;
+          installBtn.textContent = T('flow.detecting.title');
+          break;
+        }
+        case 'error': {
+          setVisual(visualIcon('⚠', 'error'));
+          flowTitle.textContent = T('flow.error.title');
+          flowDesc.innerHTML    = T('flow.error.description');
+          installBtn.textContent = T('flow.noResponse.retryButton');
+          break;
+        }
+      }
+    }
+
+    // Probe an already-authorized port silently and update the flow state.
+    // Used by initial auto-detect on load and by connect-event handler.
+    async function probePortSilently(port) {
+      if (!port) return;
+      detectState = { kind: 'detecting' };
+      renderFlow();
+      let info = null;
+      try {
+        await port.open({ baudRate: 115200, bufferSize: 8192 });
+        info = await window.__trixbrixQueryImprov(port);
+      } catch {} finally {
+        try { await port.close(); } catch {}
+      }
+      applyProbeResult(info);
+      renderFlow();
     }
 
     if ('serial' in navigator) {
-      detectBtn.addEventListener('click', () => runDetect({ silent: false }));
-      // Re-render labels when language changes
-      document.addEventListener('i18n:changed', renderDetect);
-      // Render the initial empty state once manifestData loads (see below).
-      // Try a silent auto-detect against any port the user has previously authorized.
-      navigator.serial.getPorts().then(ports => {
-        if (ports.length === 1) runDetect({ silent: true });
-      }).catch(() => {});
+      document.addEventListener('i18n:changed', renderFlow);
 
-      // Install-time safety: wrap requestPort so that immediately after the
-      // user picks a port, we open it, query improv, and refuse to return a
-      // wrong-device port to esp-web-tools. esp-web-tools checks `if (!o)
-      // return;` so returning null aborts its install flow silently. We
-      // surface the wrong-device error in our detection panel.
+      // On page load: probe any port the user previously authorized.
+      (async () => {
+        try {
+          const ports = await navigator.serial.getPorts();
+          if (ports.length === 1) await probePortSilently(ports[0]);
+        } catch {}
+      })();
+
+      // React to plug/unplug while the page is open. These events only fire
+      // for ports the user has authorized for this origin (i.e., after the
+      // first Connect & check). After that, the page stays in sync with the
+      // physical device — including post-flash auto-detect when the device
+      // reboots.
+      navigator.serial.addEventListener('connect', (e) => {
+        // Don't preempt an in-flight install. The install dialog opens its
+        // own port; once it closes, the user can re-probe by re-clicking.
+        if (detectState.kind === 'detecting' || detectState.kind === 'legacy') return;
+        probePortSilently(e.target);
+      });
+      navigator.serial.addEventListener('disconnect', () => {
+        // Any authorized port was unplugged — reset to a clean slate so the
+        // panel doesn't claim there's a device when there isn't one.
+        if (detectState.kind === 'detecting' || detectState.kind === 'legacy') return;
+        detectState = { kind: 'empty' };
+        renderFlow();
+      });
+
+      // "Use a different device" — opens the port chooser, probes, but does
+      // not proceed with install. The user can then click the primary
+      // button to actually flash if the new device is one they want updated.
+      differentBtn.addEventListener('click', () => {
+        _probeOnly = true;
+        installBtn.click();
+      });
+
+      // "Install as v1 anyway" — confirm, then bypass probe and proceed.
+      legacyBtn.addEventListener('click', () => {
+        if (!confirm(T('detect.legacyConfirm'))) return;
+        _legacyOverride = true;
+        installBtn.click();
+      });
+
+      // Wrap requestPort: probe the picked port via improv, decide whether
+      // to hand it to esp-web-tools (return port) or abort silently
+      // (return null). Flags set by secondary buttons short-circuit the
+      // wrap for explicit user actions.
       const _filterWrappedRequestPort = navigator.serial.requestPort.bind(navigator.serial);
       navigator.serial.requestPort = async (opts) => {
         const port = await _filterWrappedRequestPort(opts);
         if (!port) return port;
-        // The "Check what's installed" button does its own probe via
-        // __trixbrixDetect, which also calls requestPort. In that case skip
-        // the wrap's probe to avoid opening + closing the same port twice.
-        if (_detectionInFlight) return port;
-        // Probe the port before handing it back.
+
+        if (_legacyOverride) {
+          _legacyOverride = false;
+          detectState = { kind: 'legacy' };
+          renderFlow();
+          return port;
+        }
+
+        const probeOnly = _probeOnly;
+        _probeOnly = false;
+        const force = _forceInstall;
+        _forceInstall = false;
+
+        detectState = { kind: 'detecting' };
+        renderFlow();
         let info = null;
         try {
           await port.open({ baudRate: 115200, bufferSize: 8192 });
           info = await window.__trixbrixQueryImprov(port);
-        } catch (e) {
-          // probe failed (port locked, device unresponsive, etc.) — fall through
-        } finally {
+        } catch {} finally {
           try { await port.close(); } catch {}
         }
-        // Update the on-page detection state from what we just learned.
-        if (info && info.firmware === EXPECTED_FIRMWARE_NAME) {
-          detectState = { kind: 'detected', version: info.version };
-        } else if (info) {
-          detectState = { kind: 'wrongDevice', firmware: info.firmware };
-        } else {
-          detectState = { kind: 'legacy' };
-        }
-        renderDetect();
-        if (detectState.kind === 'wrongDevice') {
-          // Bring the detection panel into view so the user sees why the
-          // install didn't proceed.
-          if (detectPanel && detectPanel.scrollIntoView) {
-            detectPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          return null; // esp-web-tools aborts silently on falsy port
-        }
-        return port;
+        applyProbeResult(info);
+        renderFlow();
+
+        if (probeOnly) return null; // user wanted to identify, not flash
+        if (force && detectState.kind === 'detected') return port; // forced reinstall
+        if (detectState.kind === 'detected' && !isUpToDate()) return port;
+        // detected up-to-date / wrongDevice / noResponse — abort
+        return null;
       };
+
+      // Up-to-date: if user clicks the primary button, it currently aborts
+      // (returning null). To allow "Reinstall anyway" without an extra
+      // button, we'll catch this in the click sequence — since we returned
+      // null, the user clicks again with _forceInstall set. Simpler: just
+      // re-purpose the click in the up-to-date branch via a flag toggle.
+      installBtn.addEventListener('click', () => {
+        if (isUpToDate()) {
+          // First click on the up-to-date "Reinstall" button: set force and
+          // let esp-web-tools' own click handler also fire (the wrap reads
+          // _forceInstall when it's invoked).
+          _forceInstall = true;
+        }
+      }, true); // capture phase so we set the flag before the wrap runs
     }
-    // ---- /Firmware detection -----------------------------------------------
+
+    // Initial render once everything is wired
+    renderFlow();
+
 
     function pickChangelog(cl) {
       // cl can be a string (legacy) or a {lang: text} map. Pick current lang, fallback to en.
@@ -382,7 +449,7 @@
         versionTag.hidden = false;
       }
       renderVersions();
-      renderDetect();
+      renderFlow();
       document.addEventListener('i18n:changed', renderVersions);
     } catch (e) {
       versionsEl.innerHTML = `<p class="muted">${T('versions.error')} ${e.message}</p>`;

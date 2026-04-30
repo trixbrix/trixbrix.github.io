@@ -68,40 +68,24 @@
       <p data-i18n="browser.body">The update tool only works in Google Chrome or Microsoft Edge. Please open this page in one of those, then come back here.</p>
     </div>
 
-    <section class="detect-panel" id="detect-panel" data-state="empty" hidden>
-      <span class="detect-empty-prompt" data-i18n="detect.emptyPrompt">Want to know what's already on your device?</span>
-      <div class="detect-result">
-        <div class="detect-col detect-current">
-          <span class="label" data-i18n="detect.onDevice">On your device</span>
-          <span class="value" id="detect-current-value">—</span>
-          <span class="sub" id="detect-current-sub"></span>
-        </div>
-        <div class="detect-arrow" aria-hidden="true">→</div>
-        <div class="detect-col detect-target">
-          <span class="label" data-i18n="detect.willInstall">Will install</span>
-          <span class="value" id="detect-target-value">—</span>
-        </div>
-      </div>
-      <p class="detect-status" id="detect-status" data-tone="info"></p>
-      <button class="btn-secondary" id="detect-btn" type="button" data-i18n="detect.button">Check what's installed</button>
-    </section>
+    <section class="flow-panel" id="flow-panel" data-state="empty">
+      <div class="flow-visual" id="flow-visual" aria-hidden="true"></div>
+      <h2 class="flow-title" id="flow-title">Connect your device</h2>
+      <p class="flow-description" id="flow-description"></p>
 
-    <section class="panel">
-      <h2 data-i18n="install.heading">Install firmware</h2>
-      <ol class="steps">
-        <li data-i18n="install.step1">Plug your controller into the computer with the USB cable.</li>
-        <li data-i18n-html="install.step2">Click <strong>Install firmware</strong>.</li>
-        <li data-i18n-html="install.step3">A small window will pop up asking you to pick a device — choose the one that appeared when you plugged in (usually the only option), then click <em>Connect</em>.</li>
-        <li id="step-erase" data-i18n-html="install.step4">When asked <em>Erase device?</em>, leave the box unchecked to keep your saved settings (paired remote, switch color). Then click <em>Next</em> and <em>Install</em>.</li>
-      </ol>
-      <p class="step-hint" data-i18n-html="install.tip"><strong>Tip:</strong> if you see more than one option in the list, look for a name containing <code>USB-SERIAL</code>, <code>CP210x</code>, or <code>CH340</code>.</p>
-
-      <div class="install-row">
+      <div class="flow-actions">
         <esp-web-install-button id="installer" manifest="./manifest.json">
-          <button id="install-btn" class="btn-install" slot="activate" data-i18n="install.button">Install firmware</button>
+          <button id="install-btn" class="btn-install" slot="activate">Connect &amp; check</button>
         </esp-web-install-button>
+        <a class="btn-install link-as-button" id="goto-other-btn" hidden></a>
       </div>
-      <p class="install-verify-hint" data-i18n-html="install.verifyFirst">Click <strong>Check what's installed</strong> above to verify your device before installing.</p>
+
+      <div class="flow-secondary">
+        <button class="btn-secondary" id="check-different-btn" type="button" hidden></button>
+        <button class="btn-secondary" id="legacy-override-btn" type="button" hidden></button>
+      </div>
+
+      <p class="flow-tip" id="flow-tip" hidden></p>
     </section>
 
     <h2 data-i18n="versions.heading">Version history</h2>
@@ -137,182 +121,249 @@
     let versionsData = null;
     let manifestData = null;
 
-    // ---- Firmware detection (improv-serial) ---------------------------------
+    // ---- Single guided flow (improv-serial driven) -------------------------
     const EXPECTED_FIRMWARE_NAME = 'Trixbrix Switch Controller';
+    const EXPECTED_DEVICE_LABEL  = 'Switch Controller for Original Lego Switches';
     const FIRMWARE_PAGES = {
       'Trixbrix All-In-One Controller 2.0': { path: '../all-in-one-controller/', label: 'All-In-One Controller 2.0' },
       'Trixbrix Switch Controller':         { path: '../switch-controller/',     label: 'Switch Controller for Original Lego Switches' },
     };
-    const detectPanel  = document.getElementById('detect-panel');
-    const detectBtn    = document.getElementById('detect-btn');
-    const detectStatus = document.getElementById('detect-status');
-    const detectCurVal = document.getElementById('detect-current-value');
-    const detectCurSub = document.getElementById('detect-current-sub');
-    const detectTgtVal = document.getElementById('detect-target-value');
-    const stepErase    = document.getElementById('step-erase');
-    const installPanel = document.querySelector('.panel');
+
+    const flowPanel    = document.getElementById('flow-panel');
+    const flowVisual   = document.getElementById('flow-visual');
+    const flowTitle    = document.getElementById('flow-title');
+    const flowDesc     = document.getElementById('flow-description');
+    const flowTip      = document.getElementById('flow-tip');
+    const installBtn   = document.getElementById('install-btn');
+    const gotoBtn      = document.getElementById('goto-other-btn');
+    const differentBtn = document.getElementById('check-different-btn');
+    const legacyBtn    = document.getElementById('legacy-override-btn');
+
     let detectState = { kind: 'empty' };
+    let _legacyOverride = false;
+    let _forceInstall   = false;
+    let _probeOnly      = false;
 
-    function renderDetect() {
-      if (!('serial' in navigator)) return;
-      const targetVer = manifestData && manifestData.version
-        ? 'v' + manifestData.version : '—';
-      detectTgtVal.textContent = targetVer;
-
-      const s = detectState;
-      if (s.kind === 'empty') {
-        detectPanel.hidden = false;
-        detectPanel.dataset.state = 'empty';
-        detectPanel.dataset.noTarget = 'true';
-        detectStatus.hidden = true;
-        detectBtn.disabled = false;
-        detectBtn.textContent = T('detect.button');
-        return;
-      }
-      detectPanel.dataset.state = s.kind;
-      detectPanel.dataset.noTarget = 'false';
-      detectBtn.disabled = (s.kind === 'detecting');
-      detectBtn.textContent = (s.kind === 'detecting')
-        ? T('detect.detecting')
-        : T('detect.tryAgain');
-      detectStatus.hidden = false;
-
-      if (s.kind === 'detecting') {
-        detectCurVal.textContent = '…';
-        detectCurSub.textContent = '';
-        detectStatus.dataset.tone = 'info';
-        detectStatus.innerHTML = T('detect.detecting');
-        return;
-      }
-
-      if (s.kind === 'detected') {
-        detectCurVal.textContent = 'v' + s.version;
-        detectCurSub.textContent = '';
-        const same = manifestData && s.version === manifestData.version;
-        if (same) {
-          detectPanel.dataset.noTarget = 'true';
-          detectStatus.dataset.tone = 'ok';
-          detectStatus.innerHTML = T('detect.upToDate');
-        } else {
-          detectStatus.dataset.tone = 'info';
-          detectStatus.innerHTML = T('detect.outdated');
-        }
-        if (stepErase) stepErase.hidden = true;
-        return;
-      }
-
-      const allowInstall = (s.kind === 'detected' || s.kind === 'legacy');
-      if (installPanel) {
-        installPanel.classList.toggle('install-blocked', !allowInstall);
-        installPanel.classList.toggle('show-verify-hint', s.kind === 'empty' || s.kind === 'detecting');
-      }
-
-      if (s.kind === 'wrongDevice') {
-        detectCurVal.textContent = '⚠';
-        detectCurSub.textContent = s.firmware ? s.firmware.replace(/^Trixbrix /, '') : '';
-        detectStatus.dataset.tone = 'error';
-        const suggested = FIRMWARE_PAGES[s.firmware];
-        if (suggested) {
-          detectStatus.innerHTML = T('detect.wrongDevice')
-            .replace('{detected}', `<strong>${s.firmware}</strong>`)
-            .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`)
-            .replace('{link}', `<a href="${suggested.path}">${suggested.label}</a>`);
-        } else {
-          detectStatus.innerHTML = T('detect.unknownDevice')
-            .replace('{detected}', `<strong>${s.firmware || '?'}</strong>`)
-            .replace('{expected}', `<strong>${EXPECTED_FIRMWARE_NAME}</strong>`);
-        }
-        return;
-      }
-
-      if (s.kind === 'legacy') {
-        detectCurVal.textContent = 'v1';
-        detectCurSub.textContent = '';
-        detectStatus.dataset.tone = 'warn';
-        detectStatus.innerHTML = T('detect.legacyDetected');
-        if (stepErase) stepErase.hidden = false;
-        return;
-      }
-
-      if (s.kind === 'error') {
-        detectCurVal.textContent = '—';
-        detectCurSub.textContent = '';
-        detectStatus.dataset.tone = 'error';
-        detectStatus.innerHTML = T('detect.connectFailed');
-        return;
+    function applyProbeResult(info) {
+      if (info && info.firmware === EXPECTED_FIRMWARE_NAME) {
+        detectState = { kind: 'detected', version: info.version };
+      } else if (info) {
+        detectState = { kind: 'wrongDevice', firmware: info.firmware };
+      } else {
+        detectState = { kind: 'noResponse' };
       }
     }
 
-    let _detectionInFlight = false;
+    function isUpToDate() {
+      return detectState.kind === 'detected'
+        && manifestData && detectState.version === manifestData.version;
+    }
 
-    async function runDetect({ silent = false } = {}) {
-      detectState = { kind: 'detecting' };
-      renderDetect();
-      _detectionInFlight = true;
-      try {
-        const info = await window.__trixbrixDetect({ useExisting: silent });
-        if (!info) {
-          detectState = { kind: silent ? 'empty' : 'legacy' };
-        } else if (info.firmware !== EXPECTED_FIRMWARE_NAME) {
-          detectState = { kind: 'wrongDevice', firmware: info.firmware };
-        } else {
-          detectState = { kind: 'detected', version: info.version };
-        }
-      } catch (e) {
-        if (silent) {
-          detectState = { kind: 'empty' };
-        } else {
-          detectState = { kind: 'error', message: e && e.message };
-        }
-      } finally {
-        _detectionInFlight = false;
+    function setVisual(html) { flowVisual.innerHTML = html; }
+    function visualVersion(from, to, kind) {
+      if (kind === 'ok') {
+        return `<div class="flow-version-display ok">
+          <span class="version-num">v${from}</span>
+          <span class="check" aria-hidden="true">✓</span>
+        </div>`;
       }
-      renderDetect();
+      if (kind === 'update') {
+        return `<div class="flow-version-display update">
+          <span class="version-num from">v${from}</span>
+          <span class="version-arrow" aria-hidden="true">→</span>
+          <span class="version-num to">v${to}</span>
+        </div>`;
+      }
+      return '';
+    }
+    function visualIcon(symbol, tone) {
+      return `<div class="flow-icon" data-tone="${tone || 'info'}" aria-hidden="true">${symbol}</div>`;
+    }
+
+    function renderFlow() {
+      if (!('serial' in navigator)) return;
+
+      flowTip.hidden = true;
+      gotoBtn.hidden = true;
+      differentBtn.hidden = true;
+      legacyBtn.hidden = true;
+      installBtn.hidden = false;
+      installBtn.disabled = false;
+      flowPanel.dataset.state = detectState.kind;
+
+      const targetV = manifestData && manifestData.version ? manifestData.version : '?';
+
+      switch (detectState.kind) {
+        case 'empty': {
+          setVisual(visualIcon('⚡', 'info'));
+          flowTitle.textContent = T('flow.initial.title');
+          flowDesc.innerHTML    = T('flow.initial.description');
+          installBtn.textContent = T('flow.initial.button');
+          flowTip.innerHTML = T('install.tip');
+          flowTip.hidden = false;
+          break;
+        }
+        case 'detecting': {
+          setVisual(visualIcon('⏳', 'info'));
+          flowTitle.textContent = T('flow.detecting.title');
+          flowDesc.innerHTML    = T('flow.detecting.description');
+          installBtn.disabled = true;
+          installBtn.textContent = T('flow.detecting.title');
+          break;
+        }
+        case 'detected': {
+          if (isUpToDate()) {
+            setVisual(visualVersion(detectState.version, null, 'ok'));
+            flowTitle.textContent = T('flow.upToDate.title');
+            flowDesc.innerHTML    = T('flow.upToDate.description');
+            installBtn.textContent = T('flow.upToDate.button')
+              .replace('{version}', `v${detectState.version}`);
+          } else {
+            setVisual(visualVersion(detectState.version, targetV, 'update'));
+            flowTitle.textContent = T('flow.updateAvailable.title');
+            flowDesc.innerHTML    = T('flow.updateAvailable.description');
+            installBtn.textContent = T('flow.updateAvailable.button')
+              .replace('{version}', `v${targetV}`);
+          }
+          differentBtn.hidden = false;
+          differentBtn.textContent = T('flow.checkDifferent');
+          break;
+        }
+        case 'wrongDevice': {
+          setVisual(visualIcon('⚠', 'warn'));
+          flowTitle.textContent = T('flow.wrongDevice.title');
+          flowDesc.innerHTML    = T('flow.wrongDevice.description')
+            .replace('{detected}', `<strong>${detectState.firmware}</strong>`)
+            .replace('{expected}', `<strong>${EXPECTED_DEVICE_LABEL}</strong>`);
+          installBtn.hidden = true;
+          const suggested = FIRMWARE_PAGES[detectState.firmware];
+          if (suggested) {
+            gotoBtn.hidden = false;
+            gotoBtn.href = suggested.path;
+            gotoBtn.textContent = T('flow.wrongDevice.gotoButton')
+              .replace('{label}', suggested.label);
+          }
+          differentBtn.hidden = false;
+          differentBtn.textContent = T('flow.checkDifferent');
+          break;
+        }
+        case 'noResponse': {
+          setVisual(visualIcon('?', 'warn'));
+          flowTitle.textContent = T('flow.noResponse.title');
+          flowDesc.innerHTML    = T('flow.noResponse.description');
+          installBtn.textContent = T('flow.noResponse.retryButton');
+          legacyBtn.hidden = false;
+          legacyBtn.textContent = T('flow.noResponse.legacyButton');
+          break;
+        }
+        case 'legacy': {
+          setVisual(visualVersion('1', targetV, 'update'));
+          flowTitle.textContent = T('flow.legacyInstalling.title');
+          flowDesc.innerHTML    = T('flow.legacyInstalling.description');
+          installBtn.disabled = true;
+          installBtn.textContent = T('flow.detecting.title');
+          break;
+        }
+        case 'error': {
+          setVisual(visualIcon('⚠', 'error'));
+          flowTitle.textContent = T('flow.error.title');
+          flowDesc.innerHTML    = T('flow.error.description');
+          installBtn.textContent = T('flow.noResponse.retryButton');
+          break;
+        }
+      }
+    }
+
+    async function probePortSilently(port) {
+      if (!port) return;
+      detectState = { kind: 'detecting' };
+      renderFlow();
+      let info = null;
+      try {
+        await port.open({ baudRate: 115200, bufferSize: 8192 });
+        info = await window.__trixbrixQueryImprov(port);
+      } catch {} finally {
+        try { await port.close(); } catch {}
+      }
+      applyProbeResult(info);
+      renderFlow();
     }
 
     if ('serial' in navigator) {
-      detectBtn.addEventListener('click', () => runDetect({ silent: false }));
-      document.addEventListener('i18n:changed', renderDetect);
-      navigator.serial.getPorts().then(ports => {
-        if (ports.length === 1) runDetect({ silent: true });
-      }).catch(() => {});
+      document.addEventListener('i18n:changed', renderFlow);
 
-      // Install-time safety: probe via improv right after port pick, refuse
-      // to return a wrong-device port to esp-web-tools.
+      (async () => {
+        try {
+          const ports = await navigator.serial.getPorts();
+          if (ports.length === 1) await probePortSilently(ports[0]);
+        } catch {}
+      })();
+
+      navigator.serial.addEventListener('connect', (e) => {
+        if (detectState.kind === 'detecting' || detectState.kind === 'legacy') return;
+        probePortSilently(e.target);
+      });
+      navigator.serial.addEventListener('disconnect', () => {
+        if (detectState.kind === 'detecting' || detectState.kind === 'legacy') return;
+        detectState = { kind: 'empty' };
+        renderFlow();
+      });
+
+      differentBtn.addEventListener('click', () => {
+        _probeOnly = true;
+        installBtn.click();
+      });
+
+      legacyBtn.addEventListener('click', () => {
+        if (!confirm(T('detect.legacyConfirm'))) return;
+        _legacyOverride = true;
+        installBtn.click();
+      });
+
       const _filterWrappedRequestPort = navigator.serial.requestPort.bind(navigator.serial);
       navigator.serial.requestPort = async (opts) => {
         const port = await _filterWrappedRequestPort(opts);
         if (!port) return port;
-        // Skip the install-time probe when the explicit "Check" button is
-        // running its own detection — avoids opening the port twice.
-        if (_detectionInFlight) return port;
+
+        if (_legacyOverride) {
+          _legacyOverride = false;
+          detectState = { kind: 'legacy' };
+          renderFlow();
+          return port;
+        }
+
+        const probeOnly = _probeOnly;
+        _probeOnly = false;
+        const force = _forceInstall;
+        _forceInstall = false;
+
+        detectState = { kind: 'detecting' };
+        renderFlow();
         let info = null;
         try {
           await port.open({ baudRate: 115200, bufferSize: 8192 });
           info = await window.__trixbrixQueryImprov(port);
-        } catch (e) {
-          // probe failed; continue
-        } finally {
+        } catch {} finally {
           try { await port.close(); } catch {}
         }
-        if (info && info.firmware === EXPECTED_FIRMWARE_NAME) {
-          detectState = { kind: 'detected', version: info.version };
-        } else if (info) {
-          detectState = { kind: 'wrongDevice', firmware: info.firmware };
-        } else {
-          detectState = { kind: 'legacy' };
-        }
-        renderDetect();
-        if (detectState.kind === 'wrongDevice') {
-          if (detectPanel && detectPanel.scrollIntoView) {
-            detectPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          return null;
-        }
-        return port;
+        applyProbeResult(info);
+        renderFlow();
+
+        if (probeOnly) return null;
+        if (force && detectState.kind === 'detected') return port;
+        if (detectState.kind === 'detected' && !isUpToDate()) return port;
+        return null;
       };
+
+      installBtn.addEventListener('click', () => {
+        if (isUpToDate()) {
+          _forceInstall = true;
+        }
+      }, true);
     }
-    // ---- /Firmware detection -----------------------------------------------
+
+    renderFlow();
+
 
     function pickChangelog(cl) {
       if (!cl) return '';
@@ -357,7 +408,7 @@
         versionTag.hidden = false;
       }
       renderVersions();
-      renderDetect();
+      renderFlow();
       document.addEventListener('i18n:changed', renderVersions);
     } catch (e) {
       versionsEl.innerHTML = `<p class="muted">${T('versions.error')} ${e.message}</p>`;

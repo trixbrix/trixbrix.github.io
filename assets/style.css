@@ -297,44 +297,114 @@ code {
   font-size: 0.78rem;
 }
 
-/* ----- detection panel (current vs new version) ----- */
-.detect-panel {
+/* ----- guided flow panel (single-step UI) ----- */
+.flow-panel {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r-card);
-  padding: 1.25rem 1.5rem;
+  padding: 2rem 1.75rem;
   box-shadow: var(--shadow-sm);
   margin-bottom: 1.5rem;
+  text-align: center;
 }
-.detect-panel[data-state="empty"] {
-  display: flex;
+.flow-visual { margin: 0 auto 1.25rem; }
+.flow-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: inline-flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1.1rem;
-  flex-wrap: wrap;
-  background: var(--paper-tint);
-  border-style: dashed;
-  box-shadow: none;
+  justify-content: center;
+  font-size: 1.8rem;
+  background: color-mix(in srgb, var(--brick-red) 8%, var(--card));
+  color: var(--brick-red);
 }
-.detect-empty-prompt {
+.flow-icon[data-tone="warn"] {
+  background: color-mix(in srgb, var(--sun) 22%, var(--card));
+  color: color-mix(in srgb, var(--sun-d) 80%, var(--ink));
+}
+.flow-icon[data-tone="error"] {
+  background: color-mix(in srgb, var(--brick-red) 14%, var(--card));
+  color: var(--brick-red);
+}
+.flow-icon[data-tone="ok"] {
+  background: color-mix(in srgb, #1f9d55 14%, var(--card));
+  color: #1f9d55;
+}
+.flow-version-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: 'Bricolage Grotesque', serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.flow-version-display .version-num {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+.flow-version-display .version-arrow {
+  font-size: 1.5rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.flow-version-display.update .from { color: var(--muted); }
+.flow-version-display.update .to   { color: var(--brick-red); }
+.flow-version-display.ok .check {
+  font-size: 1.8rem;
+  color: #1f9d55;
+}
+
+.flow-title {
+  font-family: 'Bricolage Grotesque', serif;
+  font-weight: 700;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.65rem;
+  color: var(--ink);
+}
+.flow-description {
+  margin: 0 auto 1.5rem;
+  max-width: 52ch;
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  flex: 1;
-  min-width: 0;
+  font-size: 1rem;
 }
-.detect-panel[data-state="empty"] .detect-result,
-.detect-panel[data-state="empty"] .detect-status { display: none; }
-.detect-panel:not([data-state="empty"]) .detect-empty-prompt { display: none; }
-.detect-panel .detect-result {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+.flow-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 0.5rem;
 }
-.detect-panel[data-no-target="true"] .detect-result { grid-template-columns: 1fr; }
-.detect-panel[data-no-target="true"] .detect-arrow,
-.detect-panel[data-no-target="true"] .detect-target { display: none; }
+.flow-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.85rem;
+}
+.flow-tip {
+  margin: 1.5rem auto 0;
+  max-width: 50ch;
+  padding: 0.7rem 0.95rem;
+  background: var(--paper-tint);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+}
+.link-as-button {
+  text-decoration: none;
+}
+[hidden] { display: none !important; }
+.flow-panel[data-state="empty"] .flow-icon { background: color-mix(in srgb, var(--brick-red) 8%, var(--card)); }
+.flow-panel[data-state="detecting"] .flow-icon {
+  animation: flow-spin 1.6s linear infinite;
+}
+@keyframes flow-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .flow-panel[data-state="detecting"] .flow-icon { animation: none; }
+}
 .detect-col {
   display: flex;
   flex-direction: column;
@@ -531,17 +601,6 @@ code {
   inset: 0;
   cursor: not-allowed;
 }
-.install-verify-hint {
-  margin: 0.85rem 0 0;
-  padding: 0.7rem 0.95rem;
-  background: var(--paper-tint);
-  border: 1px dashed var(--line);
-  border-radius: 8px;
-  color: var(--ink-soft);
-  font-size: 0.92rem;
-  display: none;
-}
-.panel.show-verify-hint .install-verify-hint { display: block; }
 .panel h2 { margin-top: 0; }
 .panel > p:last-child { margin-bottom: 0; }
 

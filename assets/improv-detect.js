@@ -67,29 +67,50 @@
   }
 
   // Talk to an already-opened port. Returns parsed info or null on timeout.
-  async function queryImprovOnOpenPort(port, timeoutMs = 1500) {
+  // The probe sends GET_DEVICE_INFO multiple times across the timeout window
+  // because the device can be momentarily busy (BLE setup, button-task wait,
+  // etc.) and may drop a single request. Multi-send + a generous timeout
+  // gives consistent results across page reloads.
+  async function queryImprovOnOpenPort(port, timeoutMs = 3000) {
     let writer = null;
     let reader = null;
     let result = null;
 
+    async function sendRequest() {
+      try {
+        const w = port.writable.getWriter();
+        await w.write(GET_DEVICE_INFO_REQUEST);
+        w.releaseLock();
+      } catch {
+        // ignore — locked by the active reader/writer; we'll catch the response anyway
+      }
+    }
+
+    // Schedule three sends across the window: at t=0, t=400ms, t=1200ms.
+    const start = Date.now();
+    const sendSchedule = [0, 400, 1200];
+    let scheduledIndex = 0;
+
     try {
-      writer = port.writable.getWriter();
-      // Try once. If the device booted recently, the first request may be
-      // missed — retry once after a short pause.
-      await writer.write(GET_DEVICE_INFO_REQUEST);
-      writer.releaseLock();
-      writer = null;
+      // Initial send
+      await sendRequest();
+      scheduledIndex = 1;
 
       reader = port.readable.getReader();
-      const deadline = Date.now() + timeoutMs;
+      const deadline = start + timeoutMs;
       let buf = new Uint8Array(0);
-      let retried = false;
 
       while (Date.now() < deadline) {
         const remaining = deadline - Date.now();
+        // Stop reading briefly to schedule the next request if its time has come.
+        const nextSendAt = scheduledIndex < sendSchedule.length
+          ? start + sendSchedule[scheduledIndex]
+          : Infinity;
+        const sliceMs = Math.max(50, Math.min(remaining, nextSendAt - Date.now()));
+
         let timeoutId;
         const timeoutP = new Promise((_, rej) => {
-          timeoutId = setTimeout(() => rej(new Error('timeout')), remaining);
+          timeoutId = setTimeout(() => rej(new Error('timeout')), sliceMs);
         });
         let r;
         try {
@@ -97,7 +118,16 @@
           clearTimeout(timeoutId);
         } catch {
           clearTimeout(timeoutId);
-          break;
+          // slice timeout: maybe time to send another request
+          if (scheduledIndex < sendSchedule.length && Date.now() >= start + sendSchedule[scheduledIndex]) {
+            try {
+              reader.releaseLock();
+              await sendRequest();
+              reader = port.readable.getReader();
+            } catch {}
+            scheduledIndex++;
+          }
+          continue;
         }
         if (r.done) break;
 
@@ -109,21 +139,6 @@
 
         result = parseImprovResponse(buf);
         if (result) break;
-
-        // After 600ms with no improv frame, send the request once more.
-        if (!retried && Date.now() > deadline - timeoutMs + 600) {
-          retried = true;
-          // Briefly grab the writer again to send the retry.
-          try {
-            reader.releaseLock();
-            const w2 = port.writable.getWriter();
-            await w2.write(GET_DEVICE_INFO_REQUEST);
-            w2.releaseLock();
-            reader = port.readable.getReader();
-          } catch {
-            // ignore — keep waiting on the original reader if relock fails
-          }
-        }
       }
     } finally {
       if (reader) {
