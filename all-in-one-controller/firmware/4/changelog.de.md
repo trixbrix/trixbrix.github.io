@@ -1,0 +1,1 @@
+- Größere Netzwerke: Wenn der Controller das erste mit der Fernbedienung gekoppelte Gerät ist, nimmt er jetzt bis zu 9 Geräte in einem Netzwerk auf, wie in der Anleitung beschrieben. Die Versionen 1–3 haben nach 3 Geräten keine weiteren mehr angenommen.

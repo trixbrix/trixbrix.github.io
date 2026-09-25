@@ -1,0 +1,1 @@
+- Redes más grandes: cuando el controlador es el primer dispositivo emparejado con el mando, ahora acepta hasta 9 dispositivos en una misma red, tal como se describe en el manual. Las versiones 1–3 dejaban de aceptar nuevos dispositivos a partir de 3.

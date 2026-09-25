@@ -2,7 +2,7 @@
 
 Public hub for Trixbrix firmware releases, documentation, and end-user tools. Hosted on GitHub Pages at [https://trixbrix.github.io/](https://trixbrix.github.io/).
 
-The first thing here is a **browser-based firmware updater** for Trixbrix ESP32 devices: end users open the page in Chrome/Edge, plug in the device via USB, and click a button to flash. No installer, no Python, no PlatformIO. Powered by [esp-web-tools](https://github.com/esphome/esp-web-tools) and the WebSerial API.
+The first thing here is a **browser-based firmware updater** for Trixbrix ESP32 devices: end users open the page in Chrome/Edge, plug in the device via USB, and click a button to flash. No installer, no Python, no PlatformIO. Built on [esptool-js](https://github.com/espressif/esptool-js) and the WebSerial API: the page identifies the device (improv-serial, or the ESP32 boot log for older, factory-fresh or blank controllers) and installs with its own UI (`assets/device-page.js`, `assets/flasher.js`).
 
 ## Browser support
 
@@ -18,7 +18,7 @@ trixbrix.github.io/
 ├── assets/                       # css, favicon
 ├── <device>/                     # one folder per device
 │   ├── index.html                # updater page
-│   ├── manifest.json             # esp-web-tools manifest (paths + current version)
+│   ├── manifest.json             # build parts, current version, settings (NVS) partition
 │   ├── meta.json                 # display name + description (used on landing)
 │   ├── versions.json             # generated: list of all published versions + changelogs
 │   └── firmware/<version>/       # versioned bin files (committed to git)

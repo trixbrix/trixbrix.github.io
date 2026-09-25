@@ -1,0 +1,1 @@
+- Grotere netwerken: wanneer de controller het eerste apparaat is dat met de afstandsbediening is gekoppeld, accepteert hij nu tot 9 apparaten in één netwerk, zoals beschreven in de handleiding. Versies 1–3 accepteerden na 3 apparaten geen nieuwe meer.

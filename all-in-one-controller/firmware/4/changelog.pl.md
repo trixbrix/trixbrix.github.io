@@ -1,0 +1,1 @@
+- Większe sieci: gdy kontroler jest pierwszym urządzeniem sparowanym z pilotem, przyjmuje teraz do 9 urządzeń w jednej sieci, tak jak opisuje instrukcja. Wersje 1–3 przestawały przyjmować nowe urządzenia po 3.

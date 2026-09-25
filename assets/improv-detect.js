@@ -66,6 +66,10 @@
     return null;
   }
 
+  // Bytes the last improv query read. Opening the port restarts the ESP32 on
+  // most setups, so this often already holds the ROM boot log.
+  let lastImprovRaw = new Uint8Array(0);
+
   // Talk to an already-opened port. Returns parsed info or null on timeout.
   // The probe sends GET_DEVICE_INFO multiple times across the timeout window
   // because the device can be momentarily busy (BLE setup, button-task wait,
@@ -73,6 +77,7 @@
   // gives consistent results across page reloads.
   async function queryImprovOnOpenPort(port, timeoutMs = 3000) {
     let writer = null;
+    lastImprovRaw = new Uint8Array(0);
     let reader = null;
     let result = null;
 
@@ -136,6 +141,7 @@
         newBuf.set(buf);
         newBuf.set(v, buf.length);
         buf = newBuf;
+        lastImprovRaw = buf;
 
         result = parseImprovResponse(buf);
         if (result) break;
@@ -184,9 +190,118 @@
     return info;
   }
 
+  // Restart the ESP32 into normal boot and read what the ROM bootloader
+  // prints. Works on any ESP32 board with the usual DTR/RTS -> EN/IO0
+  // transistor pair (CP2102N on our controllers): RTS alone pulls EN low,
+  // DTR stays released so IO0 stays high and the chip boots from flash.
+  //
+  // Returns the text that arrived; classifyBootLog() reads it:
+  //   'blank'       — flash is empty: the ROM loops on "invalid header:
+  //                   0xffffffff" (or a bootloader finds no app partition)
+  //   'hasFirmware' — a bootloader handed over to an app ("entry 0x...")
+  //   null          — nothing recognisable arrived (wrong port, bad cable)
+  const BLANK_PATTERNS = [/invalid header: 0xffffffff/i, /No bootable app partitions/i];
+  const FIRMWARE_PATTERNS = [/entry 0x[0-9a-f]{8}/i];
+
+  function classifyBootLog(text) {
+    if (BLANK_PATTERNS.some((re) => re.test(text))) return 'blank';
+    if (FIRMWARE_PATTERNS.some((re) => re.test(text))) return 'hasFirmware';
+    return null;
+  }
+
+  // The ROM prints the segment table of the 2nd stage bootloader it loads.
+  // Every Trixbrix build so far (Arduino-ESP32 via espressif32@3.5.0) ships
+  // the same bootloader: segments 1044 / 10124 / 5828 bytes, entry
+  // 0x400806a8. Anything else is someone else's firmware, e.g. the ESP-AT
+  // firmware Espressif pre-flashes on ESP32-WROOM-32E modules.
+  // Only consulted when improv is silent. A future build with a different
+  // bootloader must be added here, or a controller that doesn't answer
+  // improv before the restart would be treated as foreign (full erase);
+  // scripts/publish-device.sh warns when the bootloader changes.
+  const TRIXBRIX_BOOTLOADER = [/load:0x40078000,len:10124\b/, /entry 0x400806a8\b/];
+
+  function isTrixbrixBootloader(text) {
+    return TRIXBRIX_BOOTLOADER.every((re) => re.test(text));
+  }
+
+  async function probeBootLogOnOpenPort(port, timeoutMs = 2000) {
+    const sleep = (ms) => new Promise((r) => setTimeout(() => r(null), ms));
+    const decoder = new TextDecoder('latin1');
+    let reader = null;
+    let pending = null; // an unresolved reader.read() is reused, never dropped
+    let text = '';
+
+    // Read for up to `ms`; returns the chunk, or null on timeout / end.
+    async function readFor(ms) {
+      if (!pending) pending = reader.read();
+      const r = await Promise.race([pending, sleep(ms)]);
+      if (!r) return null;
+      pending = null;
+      return r.done ? null : r.value;
+    }
+
+    try {
+      reader = port.readable.getReader();
+      // Drop anything left over from the improv query before resetting.
+      while (await readFor(30)) {}
+
+      await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+      await sleep(100);
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+
+      const deadline = Date.now() + timeoutMs;
+      while (Date.now() < deadline) {
+        const chunk = await readFor(Math.max(20, deadline - Date.now()));
+        if (!chunk) continue;
+        text += decoder.decode(chunk, { stream: true });
+        if (classifyBootLog(text)) break;
+      }
+    } catch {
+      // setSignals unsupported or port lost: report "nothing recognisable"
+    } finally {
+      if (reader) {
+        try { await reader.cancel(); } catch {}
+        try { reader.releaseLock(); } catch {}
+      }
+    }
+    return text;
+  }
+
+  // Full identification of an already-open port:
+  //   { kind: 'improv', info }  — our firmware answered improv
+  //   { kind: 'blank' }         — factory-fresh chip, nothing in flash
+  //   { kind: 'noImprov' }      — Trixbrix firmware from before improv (pre-v2)
+  //   { kind: 'foreign' }       — someone else's firmware (e.g. factory ESP-AT)
+  //   { kind: 'noResponse' }    — no improv and no readable boot log
+  //
+  // The restart also wakes a controller that went back to deep sleep after
+  // being plugged in while off, so improv is asked once more after it.
+  async function identifyOnOpenPort(port) {
+    let info = await queryImprovOnOpenPort(port);
+    if (info) return { kind: 'improv', info };
+    const seenOnOpen = new TextDecoder('latin1').decode(lastImprovRaw);
+    const seenAfterReset = await probeBootLogOnOpenPort(port);
+    const bootLog = seenOnOpen + seenAfterReset;
+
+    const boot = classifyBootLog(bootLog);
+    if (boot === 'blank') return { kind: 'blank' };
+    if (boot === 'hasFirmware') {
+      // Only our firmware can answer improv after the restart; don't wait
+      // for someone else's.
+      if (!isTrixbrixBootloader(bootLog)) return { kind: 'foreign' };
+      info = await queryImprovOnOpenPort(port, 4000);
+      if (info) return { kind: 'improv', info };
+      return { kind: 'noImprov' };
+    }
+    return { kind: 'noResponse' };
+  }
+
   window.__trixbrixDetect = detectFirmware;
+  // Restart + read the boot log on an already-open port. See above.
+  window.__trixbrixProbeBootLog = probeBootLogOnOpenPort;
+  // improv, then boot log, then improv again. Used by the device pages.
+  window.__trixbrixIdentify = identifyOnOpenPort;
   // Lower-level: given an already-open port, send improv GET_DEVICE_INFO
-  // and return parsed info or null. Used by the install-time guard so we
-  // can introspect the user's picked port before esp-web-tools opens it.
+  // and return parsed info or null.
   window.__trixbrixQueryImprov = queryImprovOnOpenPort;
 })();

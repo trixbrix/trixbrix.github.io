@@ -103,6 +103,19 @@ cp "$build_dir/partitions.bin" "$out_dir/"
 cp "$build_dir/firmware.bin"   "$out_dir/"
 cp "$boot_app0"                "$out_dir/boot_app0.bin"
 
+# assets/improv-detect.js recognises pre-v2 Trixbrix firmware by the segment
+# sizes of this bootloader (TRIXBRIX_BOOTLOADER). A new one must be added there.
+for d in "$device_dir/firmware"/*/; do
+  prev_bl="$d/bootloader.bin"
+  [[ "$d" == "$out_dir/" || ! -f "$prev_bl" ]] && continue
+  if ! cmp -s "$prev_bl" "$out_dir/bootloader.bin"; then
+    echo "Warning: bootloader.bin differs from version $(basename "$d"). Add its ROM log" >&2
+    echo "  fingerprint ('load:0x40078000,len:...' and 'entry 0x...') to" >&2
+    echo "  TRIXBRIX_BOOTLOADER in assets/improv-detect.js." >&2
+    break
+  fi
+done
+
 # Record which firmware-repo commit produced these binaries so the next
 # publish can diff git log <prev>..HEAD and write release notes from it.
 src_sha=$(git -C "$firmware_root" rev-parse HEAD 2>/dev/null || true)
@@ -155,6 +168,15 @@ def vkey(name):
             parts.append((1, x))
     return parts
 
+# Keep the release date of versions that were already published. File
+# mtimes change on every fresh checkout, so they only date new versions.
+known_dates = {}
+try:
+    prev = json.loads((device_dir / "versions.json").read_text())
+    known_dates = {v["version"]: v.get("date", "") for v in prev.get("versions", [])}
+except Exception:
+    pass
+
 versions = []
 if fw_root.is_dir():
     dirs = sorted(
@@ -177,10 +199,12 @@ if fw_root.is_dir():
             else:
                 continue
             changelogs[lang] = cl.read_text()
-        try:
-            date = datetime.date.fromtimestamp(firmware_bin.stat().st_mtime).isoformat()
-        except Exception:
-            date = ""
+        date = known_dates.get(d.name, "")
+        if not date:
+            try:
+                date = datetime.date.fromtimestamp(firmware_bin.stat().st_mtime).isoformat()
+            except Exception:
+                date = ""
         versions.append({
             "version": d.name,
             "date": date,

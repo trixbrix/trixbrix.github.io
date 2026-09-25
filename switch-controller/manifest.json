@@ -1,7 +1,6 @@
 {
   "name": "Trixbrix Switch Controller",
   "version": "3",
-  "new_install_prompt_erase": true,
   "builds": [
     {
       "chipFamily": "ESP32",
@@ -24,5 +23,9 @@
         }
       ]
     }
-  ]
+  ],
+  "settings_partition": {
+    "offset": 36864,
+    "size": 20480
+  }
 }
