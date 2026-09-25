@@ -1,24 +1,24 @@
 {
   "name": "Trixbrix Switch Controller",
-  "version": "3",
+  "version": "4",
   "builds": [
     {
       "chipFamily": "ESP32",
       "parts": [
         {
-          "path": "firmware/3/bootloader.bin",
+          "path": "firmware/4/bootloader.bin",
           "offset": 4096
         },
         {
-          "path": "firmware/3/partitions.bin",
+          "path": "firmware/4/partitions.bin",
           "offset": 32768
         },
         {
-          "path": "firmware/3/boot_app0.bin",
+          "path": "firmware/4/boot_app0.bin",
           "offset": 57344
         },
         {
-          "path": "firmware/3/firmware.bin",
+          "path": "firmware/4/firmware.bin",
           "offset": 65536
         }
       ]

@@ -1,0 +1,1 @@
+- Réseaux plus grands : lorsque le contrôleur est le premier appareil appairé avec la télécommande, il accepte désormais jusqu'à 9 appareils dans un même réseau, comme décrit dans le manuel. Les versions 1 à 3 n'acceptaient plus de nouveaux appareils au-delà de 3.

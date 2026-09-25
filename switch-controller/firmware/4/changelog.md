@@ -1,0 +1,1 @@
+- Larger networks: when the controller is the first device paired with the remote, it now accepts up to 9 devices in one network, as described in the manual. Versions 1–3 stopped accepting new devices after 3.
