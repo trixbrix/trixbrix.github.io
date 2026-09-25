@@ -201,9 +201,12 @@
   //   'hasFirmware' — a bootloader handed over to an app ("entry 0x...")
   //   null          — nothing recognisable arrived (wrong port, bad cable)
   const BLANK_PATTERNS = [/invalid header: 0xffffffff/i, /No bootable app partitions/i];
+  // The ROM can't read the flash chip at all (e.g. wrong flash voltage).
+  const FLASH_UNREADABLE_PATTERNS = [/flash read err/i];
   const FIRMWARE_PATTERNS = [/entry 0x[0-9a-f]{8}/i];
 
   function classifyBootLog(text) {
+    if (FLASH_UNREADABLE_PATTERNS.some((re) => re.test(text))) return 'flashUnreadable';
     if (BLANK_PATTERNS.some((re) => re.test(text))) return 'blank';
     if (FIRMWARE_PATTERNS.some((re) => re.test(text))) return 'hasFirmware';
     return null;
@@ -272,6 +275,7 @@
   //   { kind: 'blank' }         — factory-fresh chip, nothing in flash
   //   { kind: 'noImprov' }      — Trixbrix firmware from before improv (pre-v2)
   //   { kind: 'foreign' }       — someone else's firmware (e.g. factory ESP-AT)
+  //   { kind: 'flashUnreadable' } — the ROM can't read the flash chip
   //   { kind: 'noResponse' }    — no improv and no readable boot log
   //
   // The restart also wakes a controller that went back to deep sleep after
@@ -285,6 +289,7 @@
 
     const boot = classifyBootLog(bootLog);
     if (boot === 'blank') return { kind: 'blank' };
+    if (boot === 'flashUnreadable') return { kind: 'flashUnreadable' };
     if (boot === 'hasFirmware') {
       // Only our firmware can answer improv after the restart; don't wait
       // for someone else's.

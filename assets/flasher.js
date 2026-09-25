@@ -14,7 +14,7 @@ import { ESPLoader, Transport } from 'https://cdn.jsdelivr.net/npm/esptool-js@0.
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export class FlashError extends Error {
-  // code: 'connect' | 'unsupported' | 'download' | 'write'
+  // code: 'connect' | 'flashUnreadable' | 'unsupported' | 'download' | 'write'
   constructor(code, message) {
     super(message);
     this.code = code;
@@ -42,11 +42,19 @@ export async function installFirmware({ port, manifestUrl, manifest, resetSettin
 
   try {
     onProgress({ stage: 'connecting' });
+    let flashId;
     try {
       await esploader.main();
-      await esploader.flashId();
+      flashId = (await esploader.readFlashId()) & 0xffffff;
     } catch (err) {
       throw new FlashError('connect', err && err.message ? err.message : String(err));
+    }
+    // A flash chip that doesn't answer reads back as all ones (or zeros).
+    // On the Switch Controller this happens when GPIO12 is high at reset
+    // (it senses USB power), which selects 1.8 V for a 3.3 V flash, until
+    // the VDD_SDIO eFuse is burned. Writing would fail, so stop here.
+    if (flashId === 0xffffff || flashId === 0) {
+      throw new FlashError('flashUnreadable', `flash ID 0x${flashId.toString(16).padStart(6, '0')}`);
     }
 
     const chipFamily = esploader.chip.CHIP_NAME;

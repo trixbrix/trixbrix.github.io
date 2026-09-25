@@ -4,7 +4,7 @@
 // log, see improv-detect.js) -> offer the right action -> install with
 // esptool-js (flasher.js) -> check the version the controller reports.
 
-import { installFirmware } from './flasher.js?v=20260925e';
+import { installFirmware } from './flasher.js?v=20260925f';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const T = (k) => (window.__T__ ? window.__T__(k) : k);
@@ -66,6 +66,7 @@ export function startFlow(cfg) {
     if (result && result.kind === 'blank') return { kind: 'blank' };
     if (result && result.kind === 'noImprov') return { kind: 'oldFirmware' };
     if (result && result.kind === 'foreign') return { kind: 'foreign' };
+    if (result && result.kind === 'flashUnreadable') return { kind: 'flashUnreadable' };
     return { kind: 'noResponse' };
   }
 
@@ -104,7 +105,11 @@ export function startFlow(cfg) {
         onProgress: (p) => setState({ kind: 'installing', ...p }),
       });
     } catch (err) {
-      setState({ kind: 'installError', code: err.code || 'write', message: err.message || String(err) });
+      if (err.code === 'flashUnreadable') {
+        setState({ kind: 'flashUnreadable', detail: err.message });
+      } else {
+        setState({ kind: 'installError', code: err.code || 'write', message: err.message || String(err) });
+      }
       return;
     }
 
@@ -288,6 +293,17 @@ export function startFlow(cfg) {
         differentBtn.textContent = T('flow.done.another');
         break;
 
+      // The controller's memory can't be read, so neither the page nor the
+      // customer can fix it. The small print is for our own workshop.
+      case 'flashUnreadable':
+        visual.innerHTML = icon('⚠', 'error');
+        title.textContent = T('flow.flashUnreadable.title');
+        desc.innerHTML = `${T('flow.flashUnreadable.description')}
+          <span class="flow-error-detail">${T('flow.flashUnreadable.service')}${state.detail ? ` (${esc(state.detail)})` : ''}</span>`;
+        primary.textContent = T('flow.noResponse.retryButton');
+        differentBtn.hidden = false;
+        break;
+
       case 'installError':
         visual.innerHTML = icon('⚠', 'error');
         title.textContent = T('flow.installError.title');
@@ -312,6 +328,7 @@ export function startFlow(cfg) {
         break;
       case 'noResponse':
       case 'installError':
+      case 'flashUnreadable':
         if (port) await check(port); else await pickAndCheck();
         break;
       default:
